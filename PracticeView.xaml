@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="ScriptureMemory.PracticeView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:practice="using:ScriptureMemory.Practice">
+
+    <Grid Padding="32,24,32,16" RowSpacing="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Click="Back_Click" ToolTipService.ToolTip="Back to collection" VerticalAlignment="Center">
+                <SymbolIcon Symbol="Back" />
+            </Button>
+            <TextBlock x:Name="ReferenceText" Grid.Column="1" Style="{StaticResource TitleTextBlockStyle}"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE8E9;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Slider x:Name="FontSizeSlider" Width="120" Minimum="16" Maximum="44" StepFrequency="2" Value="26"
+                        ValueChanged="FontSize_Changed" ToolTipService.ToolTip="Text size" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Toolbar -->
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ToggleButton x:Name="FullButton" Click="Full_Click" IsChecked="True">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE890;" FontSize="16" />
+                        <TextBlock Text="Show all" />
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton x:Name="FirstLetterButton" Click="FirstLetter_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8D2;" FontSize="16" />
+                        <TextBlock Text="First letters" />
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton x:Name="BlurButton" Click="Blur_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xED1A;" FontSize="16" />
+                        <TextBlock Text="Blur" />
+                    </StackPanel>
+                </ToggleButton>
+                <Button Click="Reset_Click" ToolTipService.ToolTip="Hide the words again and start over">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <SymbolIcon Symbol="Refresh" />
+                        <TextBlock Text="Reset" />
+                    </StackPanel>
+                </Button>
+                <ToggleButton x:Name="MicButton" Click="Mic_Click" IsEnabled="False"
+                              ToolTipService.ToolTip="Recite out loud. Correct words are revealed as you say them.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE720;" FontSize="16" />
+                        <TextBlock x:Name="MicButtonText" Text="Speak" />
+                    </StackPanel>
+                </ToggleButton>
+                <ToggleButton x:Name="CalibrateButton" Click="Calibrate_Click"
+                              ToolTipService.ToolTip="Read the passage aloud with the text showing. Teaches Windows your voice and tunes how forgiving each word is.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9E9;" FontSize="16" />
+                        <TextBlock x:Name="CalibrateButtonText" Text="Calibrate voice" />
+                    </StackPanel>
+                </ToggleButton>
+                <ProgressBar x:Name="MicLevel" Width="70" Maximum="100" VerticalAlignment="Center" Visibility="Collapsed" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Status line -->
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SpeechStatus" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
+                       Text="Pick “First letters” or “Blur” to hide the words. Click any hidden word to peek at it." />
+            <TextBlock x:Name="StatsText" Grid.Column="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
+
+        <InfoBar x:Name="CompleteBar" Grid.Row="3" Severity="Success" IsOpen="False" Title="Passage complete!" />
+
+        <!-- Passage -->
+        <ScrollViewer x:Name="Scroller" Grid.Row="4" Padding="0,8,16,24">
+            <practice:WrapPanel x:Name="WordsPanel" MaxWidth="980" HorizontalAlignment="Left" />
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="5" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   Text="Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers. Used by permission. All rights reserved." />
+    </Grid>
+</UserControl>
