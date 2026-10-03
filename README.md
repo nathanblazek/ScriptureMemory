@@ -2,6 +2,8 @@
 
 A Windows app for memorizing scripture. Built with WinUI 3 (Windows App SDK) and .NET 8.
 
+There's also an Android version in [`android/`](android/README.md), built with Kotlin and Jetpack Compose. It shares the same `data.json` format, so you can move your collections between them.
+
 ![icon](Assets/app-preview.png)
 
 ## Features

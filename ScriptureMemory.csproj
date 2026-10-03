@@ -18,6 +18,8 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- The Android app lives in android/ and is built with Gradle -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);android/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
