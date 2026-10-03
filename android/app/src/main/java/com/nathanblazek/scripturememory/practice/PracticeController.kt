@@ -69,6 +69,11 @@ data class PracticeState(
 class PracticeController(
     passageText: String,
     private val profile: VoiceProfile?,
+    /**
+     * Hands-free practice (driving): an utterance that matches nothing counts as a wrong word, and
+     * the word that was expected is marked missed so the reciter can carry on after it.
+     */
+    private val strictMisses: Boolean = false,
     private val engineFactory: SpeechEngineFactory,
 ) : SpeechEvents {
     /** All tokens, in order (words, verse numbers, paragraph breaks). */
@@ -108,6 +113,9 @@ class PracticeController(
 
     /** Calibration has updated the profile and it should be saved. */
     var onProfileChanged: () -> Unit = {}
+
+    /** A spoken word was skipped or said wrong while reciting; [display] is the word as written. */
+    var onWordMissed: (display: String) -> Unit = {}
 
     init {
         val w = mutableListOf<WordToken>()
@@ -298,7 +306,7 @@ class PracticeController(
 
         val match = alignHeard(candidates, start, if (calibrating) null else profile)
         if (match == null) {
-            emit()
+            if (final && strictMisses && !calibrating) missCurrentWord() else emit()
             return
         }
 
@@ -354,13 +362,32 @@ class PracticeController(
                 if (!isConcealed(w) || w in spokenWords) continue
                 val generous = Aligner.isEasySkip(key, profile)
                 if (revealWord(w, if (generous) RevealKind.Spoken else RevealKind.Missed)) {
-                    if (generous) spoken++ else missed++
+                    if (generous) spoken++ else {
+                        missed++
+                        onWordMissed(words[w].display)
+                    }
                 }
             }
         }
 
         cursor = maxOf(cursor, lastMatched + 1)
         revealUnspeakableBefore(cursor)
+    }
+
+    /** Strict mode: what was heard didn't fit the passage, so the word expected next was said wrong. */
+    private fun missCurrentWord() {
+        val w = currentWord()
+        if (w == null) {
+            emit()
+            return
+        }
+        revealWord(w, RevealKind.Missed)
+        missed++
+        cursor = parts.indexOfLast { it.first == w } + 1
+        revealUnspeakableBefore(cursor)
+        speech?.setExpectedPosition(cursor)
+        onWordMissed(words[w].display)
+        updateProgress()
     }
 
     // ---------- Calibration ----------

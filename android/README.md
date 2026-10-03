@@ -8,6 +8,20 @@ The Android version of Scripture Memory, written in Kotlin with Jetpack Compose.
 - **Speak**: recite out loud and words are revealed as you say them, using the same forgiving matcher as the Windows app (dropped small words, near-misses, restarts).
 - **Calibrate voice**: read a passage aloud with the text showing so words the recognizer finds hard to hear in your voice get extra leeway.
 - **Progress**: completion counts and a "mastered" flag per passage.
+- **Android Auto**: hands-free practice while driving (see below).
+
+## Android Auto
+
+Practice hands-free while driving. On the car screen, pick a collection and a passage. Each verse is read aloud, then it's your turn to recite it back. The screen shows only which verse you're on. A skipped or wrong word plays a blip and shows that word large for a few seconds, and you carry on from the next word. **Repeat** reads the verse again and **Next verse** skips ahead.
+
+Because the app is installed from outside the Play Store, Android Auto only shows it after you turn on developer mode and unknown sources:
+
+1. Open Android Auto's settings on your phone (Settings › Connected devices › Connection preferences › Android Auto).
+2. Scroll to the bottom and tap **Version** about ten times, then accept the developer settings prompt.
+3. In the ⋮ menu, open **Developer settings** and turn on **Unknown sources**.
+4. Reconnect to the car. Scripture Memory appears in the app launcher.
+
+The microphone permission has to be granted on the phone (the first time you press Speak in the app). On Android 13+ the car's microphone is used where Android Auto supports it; otherwise the phone's.
 
 ## Moving your data from Windows
 

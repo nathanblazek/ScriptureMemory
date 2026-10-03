@@ -20,8 +20,8 @@ class PracticeControllerTest {
     private var engine: FakeEngine? = null
     private var engineWords: List<String> = emptyList()
 
-    private fun controller(text: String, profile: VoiceProfile? = null) =
-        PracticeController(text, profile) { words, _, _, _ ->
+    private fun controller(text: String, profile: VoiceProfile? = null, strict: Boolean = false) =
+        PracticeController(text, profile, strictMisses = strict) { words, _, _, _ ->
             engineWords = words
             FakeEngine().also { engine = it }
         }
@@ -89,5 +89,35 @@ class PracticeControllerTest {
         assertEquals(1, saved)
         assertTrue(profile.words.containsKey("loved"))
         assertEquals("Calibration saved", c.state.banner?.title)
+    }
+
+    @Test
+    fun strictModeReportsSkippedAndWrongWords() {
+        val c = controller("For God greatly loved the world", strict = true)
+        val missedWords = mutableListOf<String>()
+        c.onWordMissed = { missedWords += it }
+        c.setMode(PracticeMode.FirstLetter)
+        c.startSpeech()
+
+        c.onHeard(heard("for god loved"), final = true)
+        assertEquals(listOf("greatly"), missedWords)
+
+        // A wrong word: nothing fits, so the expected word ("the") is shown as missed and reciting carries on.
+        c.onHeard(heard("banana"), final = true)
+        assertEquals(listOf("greatly", "the"), missedWords)
+        assertEquals(RevealKind.Missed, c.state.reveal[4])
+
+        c.onHeard(heard("world"), final = true)
+        assertEquals(RevealKind.Spoken, c.state.reveal[5])
+        assertFalse(c.state.listening)
+    }
+
+    @Test
+    fun relaxedModeIgnoresNoise() {
+        val c = controller("For God so loved")
+        c.setMode(PracticeMode.FirstLetter)
+        c.startSpeech()
+        c.onHeard(heard("banana"), final = true)
+        assertTrue(c.state.reveal.all { it == RevealKind.Hidden })
     }
 }

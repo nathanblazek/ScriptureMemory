@@ -8,11 +8,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import com.nathanblazek.scripturememory.data.ApiKeyStore
 import com.nathanblazek.scripturememory.data.AppJson
-import com.nathanblazek.scripturememory.data.DataStore
+import com.nathanblazek.scripturememory.data.AppDataHolder
 import com.nathanblazek.scripturememory.data.EsvClient
 import com.nathanblazek.scripturememory.data.EsvException
 import com.nathanblazek.scripturememory.model.AppData
-import com.nathanblazek.scripturememory.model.Dates
 import com.nathanblazek.scripturememory.model.Passage
 import com.nathanblazek.scripturememory.model.VerseCollection
 
@@ -23,11 +22,10 @@ sealed interface Screen {
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
-    private val store = DataStore(app)
+    private val holder = AppDataHolder.get(app)
     private val keys = ApiKeyStore(app)
 
-    var data by mutableStateOf(store.load())
-        private set
+    val data: AppData get() = holder.data
 
     var screen by mutableStateOf<Screen>(Screen.Collections)
         private set
@@ -63,14 +61,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Saving ----------
 
-    private fun update(newData: AppData) {
-        data = newData
-        save()
-    }
+    private fun update(newData: AppData) = saving { holder.update(newData) }
 
-    fun save() {
+    fun save() = saving { holder.save() }
+
+    private fun saving(action: () -> Unit) {
         try {
-            store.save(data)
+            action()
         } catch (e: Exception) {
             message = "Couldn't save your data: ${e.message}"
         }
@@ -144,8 +141,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deletePassage(collectionId: String, passageId: String) =
         updateCollection(collectionId) { c -> c.copy(passages = c.passages.filterNot { it.id == passageId }) }
 
-    fun recordPractice(collectionId: String, passageId: String) =
-        updatePassage(collectionId, passageId) { it.copy(practiceCount = it.practiceCount + 1, lastPracticed = Dates.now()) }
+    fun recordPractice(collectionId: String, passageId: String) = saving { holder.recordPractice(collectionId, passageId) }
 
     // ---------- Import / export ----------
 

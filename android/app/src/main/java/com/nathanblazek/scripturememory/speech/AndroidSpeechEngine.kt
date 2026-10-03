@@ -2,10 +2,12 @@ package com.nathanblazek.scripturememory.speech
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -27,6 +29,8 @@ class AndroidSpeechEngine(
     private val passageWords: List<String>,
     start: Int,
     private val events: SpeechEvents,
+    /** Where the audio comes from instead of the phone's microphone (Android 13+), e.g. the car's microphone. */
+    private val audioSource: AudioSource? = null,
 ) : SpeechEngine {
     private val recognizer: SpeechRecognizer
     private val handler = Handler(Looper.getMainLooper())
@@ -34,6 +38,7 @@ class AndroidSpeechEngine(
     private var running = false
     private var consecutiveErrors = 0
     private var heardPartial = false
+    private var lastAudio: ParcelFileDescriptor? = null
 
     init {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
@@ -60,6 +65,9 @@ class AndroidSpeechEngine(
         handler.removeCallbacksAndMessages(null)
         runCatching { recognizer.cancel() }
         runCatching { recognizer.destroy() }
+        audioSource?.close()
+        runCatching { lastAudio?.close() }
+        lastAudio = null
     }
 
     private fun listen() {
@@ -76,7 +84,18 @@ class AndroidSpeechEngine(
                 putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, biasingStrings())
             }
         }
+        // SpeechRecognizer hands the intent to its service asynchronously, so the previous
+        // utterance's pipe is only closed now, once that utterance has finished.
+        runCatching { lastAudio?.close() }
+        lastAudio = null
         try {
+            if (audioSource != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val audio = audioSource.open().also { lastAudio = it }
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, audio)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+                intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, audioSource.sampleRate)
+            }
             recognizer.startListening(intent)
         } catch (e: Exception) {
             fail("Couldn't start the speech recognizer. (${e.message})")
@@ -182,4 +201,15 @@ class AndroidSpeechEngine(
         const val PARTIAL_CONFIDENCE = 0.6f
         const val MAX_CONSECUTIVE_ERRORS = 5
     }
+}
+
+/** Raw 16-bit mono PCM audio for the recognizer, as a fresh pipe for each utterance. */
+interface AudioSource {
+    val sampleRate: Int
+
+    /** Starts capturing if needed and returns the read end of a new pipe carrying the audio. */
+    fun open(): ParcelFileDescriptor
+
+    /** Stops capturing. */
+    fun close()
 }
