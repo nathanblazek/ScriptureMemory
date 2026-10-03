@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,8 @@ import androidx.compose.ui.unit.dp
 fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var creating by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(vm::importData)
@@ -69,6 +72,7 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
                             text = { Text("Export data…") },
                             onClick = { menuOpen = false; exportLauncher.launch("scripture-memory.json") },
                         )
+                        DropdownMenuItem(text = { Text("Version $version") }, onClick = {}, enabled = false)
                     }
                 },
             )

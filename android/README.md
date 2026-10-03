@@ -19,7 +19,8 @@ Because the app is installed from outside the Play Store, Android Auto only show
 1. Open Android Auto's settings on your phone (Settings › Connected devices › Connection preferences › Android Auto).
 2. Scroll to the bottom and tap **Version** about ten times, then accept the developer settings prompt.
 3. In the ⋮ menu, open **Developer settings** and turn on **Unknown sources**.
-4. Reconnect to the car. Scripture Memory appears in the app launcher.
+4. Unplug from the car, force-stop Android Auto (Settings › Apps › Android Auto › Force stop), and reconnect. Scripture Memory appears in the app launcher.
+5. If it still isn't there, check Android Auto settings › **Customize launcher**: newly installed apps can be unticked there.
 
 The microphone permission has to be granted on the phone (the first time you press Speak in the app). On Android 13+ the car's microphone is used where Android Auto supports it; otherwise the phone's.
 
