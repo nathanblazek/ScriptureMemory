@@ -14,13 +14,21 @@ The Android version of Scripture Memory, written in Kotlin with Jetpack Compose.
 
 Practice hands-free while driving. On the car screen, pick a collection and a passage. Each verse is read aloud, then it's your turn to recite it back. The screen shows only which verse you're on. A skipped or wrong word plays a blip and shows that word large for a few seconds, and you carry on from the next word. **Repeat** reads the verse again and **Next verse** skips ahead.
 
-Because the app is installed from outside the Play Store, Android Auto only shows it after you turn on developer mode and unknown sources:
+Android Auto only shows car apps in a real car when they're installed from the Play Store (even with developer mode and unknown sources on, a sideloaded APK stays hidden). Until the app is on a Play testing track, try the driving mode with Google's Desktop Head Unit (DHU), a car-screen simulator that runs on your PC.
 
-1. Open Android Auto's settings on your phone (Settings › Connected devices › Connection preferences › Android Auto).
-2. Scroll to the bottom and tap **Version** about ten times, then accept the developer settings prompt.
-3. In the ⋮ menu, open **Developer settings** and turn on **Unknown sources**.
-4. Unplug from the car, force-stop Android Auto (Settings › Apps › Android Auto › Force stop), and reconnect. Scripture Memory appears in the app launcher.
-5. If it still isn't there, check Android Auto settings › **Customize launcher**: newly installed apps can be unticked there.
+**One-time setup (Windows)**
+
+1. Install [Android Studio](https://developer.android.com/studio). Open **Tools › SDK Manager › SDK Tools**, tick **Android Auto Desktop Head Unit Emulator** and click **Apply**. It installs to `%LOCALAPPDATA%\Android\Sdk\extras\google\auto\`.
+2. On the phone, open Android Auto's settings (Settings › Connected devices › Connection preferences › Android Auto), scroll to the bottom and tap **Version** about ten times to unlock developer settings. In the ⋮ menu, open **Developer settings** and turn on **Unknown sources**.
+
+**Each time**
+
+1. Plug the phone into the PC with USB debugging on.
+2. On the phone, in Android Auto's ⋮ menu, tap **Start head unit server**.
+3. In PowerShell, in the SDK's `platform-tools` folder: `.\adb forward tcp:5277 tcp:5277`
+4. In the `extras\google\auto` folder: `.\desktop-head-unit.exe`
+
+A car screen opens on the PC. Scripture Memory is in its app launcher. Speech uses the PC's microphone and the PC speakers.
 
 The microphone permission has to be granted on the phone (the first time you press Speak in the app). On Android 13+ the car's microphone is used where Android Auto supports it; otherwise the phone's.
 
