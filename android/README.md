@@ -33,4 +33,4 @@ cd android
 ./gradlew testDebugUnitTest    # tokenizer, matcher, practice logic, data.json format
 ```
 
-Every push that touches `android/` also builds the debug APK in GitHub Actions; download it from the run's **Artifacts**.
+Every push that touches `android/` also builds the debug APK in GitHub Actions and publishes it as the `android-latest` pre-release, so the newest build is always at <https://github.com/nathanblazek/ScriptureMemory/releases/download/android-latest/ScriptureMemory.apk>.
