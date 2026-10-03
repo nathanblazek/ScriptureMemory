@@ -9,6 +9,8 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- For the Android Auto check in the menu -->
+        <package android:name="com.google.android.projection.gearhead" />
     </queries>
 
     <application

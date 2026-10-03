@@ -16,7 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,12 +42,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nathanblazek.scripturememory.car.CarSetupCheck
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     var creating by remember { mutableStateOf(false) }
+    var carCheck by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
 
@@ -72,6 +76,7 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
                             text = { Text("Export data…") },
                             onClick = { menuOpen = false; exportLauncher.launch("scripture-memory.json") },
                         )
+                        DropdownMenuItem(text = { Text("Android Auto check") }, onClick = { menuOpen = false; carCheck = CarSetupCheck.report(context) })
                         DropdownMenuItem(text = { Text("Version $version") }, onClick = {}, enabled = false)
                     }
                 },
@@ -124,6 +129,15 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
                 }
             }
         }
+    }
+
+    carCheck?.let { report ->
+        AlertDialog(
+            onDismissRequest = { carCheck = null },
+            title = { Text("Android Auto check") },
+            text = { Text(report) },
+            confirmButton = { TextButton(onClick = { carCheck = null }) { Text("OK") } },
+        )
     }
 
     if (creating) {
