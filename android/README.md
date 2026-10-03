@@ -25,8 +25,8 @@ Android Auto only shows car apps in a real car when they're installed from the P
 
 1. Plug the phone into the PC with USB debugging on.
 2. On the phone, in Android Auto's ⋮ menu, tap **Start head unit server**.
-3. In PowerShell, in the SDK's `platform-tools` folder: `.\adb forward tcp:5277 tcp:5277`
-4. In the `extras\google\auto` folder: `.\desktop-head-unit.exe`
+3. In PowerShell, from a `platform-tools` folder: `.\adb forward tcp:5277 tcp:5277`
+4. Then: `cd "$env:LOCALAPPDATA\Android\Sdk\extras\google\auto"` and `.\desktop-head-unit.exe`
 
 A car screen opens on the PC. Scripture Memory is in its app launcher. Speech uses the PC's microphone and the PC speakers.
 
