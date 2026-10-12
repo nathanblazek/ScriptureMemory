@@ -43,29 +43,47 @@ class CoachTest {
         coach.hear("jesus wept")
         assertEquals(listOf("a"), io.mastered)
         assertTrue(io.said.any { it == "Perfect. You've mastered John 11:35." })
-        assertEquals("Next, 1 Thessalonians 5:16. Listen first. Rejoice always, Now you say it.", io.said.last())
+        assertEquals("Next, 1 Thessalonians 5:16. Listen first. Rejoice always. Now you say it.", io.said.last())
         assertEquals(1, coach.state.index)
     }
 
     @Test
-    fun mistakesAskToTryAgain() {
+    fun reviewMidwaySaysHowItsGoing() {
         val io = FakeIO()
         val coach = Coach(listOf(second), null, io)
         coach.start()
         coach.hear("rejoice")
         coach.hear("verse review")
-        assertEquals("You stopped after “Rejoice”. Say verse yes to try again.", io.said.last())
-        assertEquals(CoachPhase.Waiting, coach.state.phase)
-
-        // Recitation is ignored until "verse yes".
-        coach.hear("rejoice always")
-        assertEquals(CoachPhase.Waiting, coach.state.phase)
-
-        coach.hear("verse yes")
-        assertEquals("Go ahead.", io.said.last())
+        assertEquals("So far so good. Keep going.", io.said.last())
         assertEquals(CoachPhase.Reciting, coach.state.phase)
-        coach.hear("rejoice always")
+        coach.hear("always")
         assertEquals(1, coach.state.streak)
+    }
+
+    @Test
+    fun aWrongVerseIsCorrectedRightAway() {
+        val io = FakeIO()
+        val passage = Passage(
+            id = "c",
+            reference = "1 Thessalonians 5:16–18",
+            text = "[16] Rejoice always, [17] pray without ceasing, [18] give thanks in all circumstances;",
+        )
+        val coach = Coach(listOf(passage), null, io)
+        coach.start()
+
+        // Verse 16 is fine; "ceasing" is left out of verse 17, which shows once verse 18 is under way.
+        coach.hear("rejoice always pray without")
+        assertEquals(CoachPhase.Reciting, coach.state.phase)
+        coach.hear("pray without give thanks")
+        assertEquals("That's not quite right. 1 Thessalonians 5:17. pray without ceasing. Try again.", io.said.last())
+        assertEquals(CoachPhase.Reciting, coach.state.phase)
+        assertTrue(io.listening)
+
+        // Going again from verse 17 to the end, then the whole passage.
+        coach.hear("pray without ceasing give thanks in all circumstances")
+        assertEquals("Good. Now say all of 1 Thessalonians 5:16–18 from the start.", io.said.last())
+        coach.hear("rejoice always pray without ceasing give thanks in all circumstances")
+        assertEquals("Perfect. Say it once more to lock it in.", io.said.last())
     }
 
     @Test

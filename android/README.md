@@ -14,14 +14,14 @@ The Android version of Scripture Memory, written in Kotlin with Jetpack Compose.
 
 ## Interact: the voice coach
 
-Open a collection and tap **Interact**. The coach starts with the first passage you haven't mastered: it reads the passage, then you recite it. When you reach the end it tells you what you left out or said out of order, with the passage around it, and asks you to try again. Two perfect recitations in a row marks the passage mastered and moves on to the next.
+Open a collection and tap **Interact**. The coach starts with the first passage you haven't mastered: it reads the passage, then you recite it. As soon as you finish a verse with a mistake in it (a word left out, a different word, or words out of order), it stops you, reads that verse back, says "Try again", and listens again from that verse. Once you've got to the end, you say the whole passage once more from the start. Two perfect recitations in a row marks the passage mastered and moves on to the next.
 
 Say "verse" and then a command at any time:
 
 | Say | What happens |
 | --- | --- |
 | verse yes | Start the passage again |
-| verse review | Stop and hear how it went |
+| verse review | Check what you've said so far |
 | verse speak | Hear the passage read aloud, then start over |
 | verse hint | Hear the next few words, then carry on |
 | verse all | Recite the whole collection from the top, one passage after another |

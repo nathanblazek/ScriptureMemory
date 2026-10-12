@@ -1,4 +1,4 @@
-package com.nathanblazek.scripturememory.car
+package com.nathanblazek.scripturememory.practice
 
 import com.nathanblazek.scripturememory.model.Passage
 import org.junit.Assert.assertEquals

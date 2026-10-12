@@ -1,8 +1,6 @@
-package com.nathanblazek.scripturememory.car
+package com.nathanblazek.scripturememory.practice
 
 import com.nathanblazek.scripturememory.model.Passage
-import com.nathanblazek.scripturememory.practice.TokenKind
-import com.nathanblazek.scripturememory.practice.Tokenizer
 
 /** One verse of a passage: [label] like "John 3:16", [text] to practice, and [spoken] to read aloud. */
 data class Verse(val label: String, val text: String, val spoken: String)

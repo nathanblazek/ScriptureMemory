@@ -17,6 +17,7 @@ import com.nathanblazek.scripturememory.model.Passage
 import com.nathanblazek.scripturememory.practice.PracticeController
 import com.nathanblazek.scripturememory.practice.PracticeMode
 import com.nathanblazek.scripturememory.practice.SpeechEvents
+import com.nathanblazek.scripturememory.practice.Verses
 import com.nathanblazek.scripturememory.speech.AndroidSpeechEngine
 import com.nathanblazek.scripturememory.speech.AudioSource
 import com.nathanblazek.scripturememory.speech.Voice

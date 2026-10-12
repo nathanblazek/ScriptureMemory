@@ -30,7 +30,18 @@ data class Grade(
  * they're said, this keeps everything heard so a word said out of order can be recognized as such.
  */
 class Recitation(passageText: String, private val profile: VoiceProfile?) {
-    private val words: List<WordToken> = Tokenizer.tokenize(passageText).filter { it.kind == TokenKind.Word }
+    private val tokens = Tokenizer.tokenize(passageText)
+    private val words: List<WordToken> = tokens.filter { it.kind == TokenKind.Word }
+
+    /** The index of the first word of each verse. */
+    private val verseStarts: List<Int> = buildList {
+        add(0)
+        var n = 0
+        for (t in tokens) {
+            if (t.kind == TokenKind.VerseNumber && n > last()) add(n)
+            if (t.kind == TokenKind.Word) n++
+        }
+    }
 
     /** Every speakable word part in order: (word index, key). */
     private val parts: List<Pair<Int, String>> =
@@ -158,6 +169,23 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
             if (lostBetweenUtterances || misheard) forgiven += p
         }
         return forgiven
+    }
+
+    /**
+     * The first verse (0-based) with a mistake in it among those the reciter has finished: moved a
+     * couple of words into the next verse, or reached the end. [includeCurrent] also counts the verse
+     * they're in the middle of. Null if none.
+     */
+    fun firstWrongVerse(grade: Grade, includeCurrent: Boolean = false): Int? {
+        if (!grade.heardAnything) return null
+        for (v in verseStarts.indices) {
+            val start = verseStarts[v]
+            val end = (verseStarts.getOrNull(v + 1) ?: words.size) - 1
+            val finished = grade.reachedEnd || grade.lastWord >= end + 2 || (includeCurrent && grade.lastWord >= start)
+            if (!finished) break
+            if (grade.mistakes.any { it.first <= end && it.last >= start }) return v
+        }
+        return null
     }
 
     /** The passage's words [first]..[last], as written but without quotation marks. */
