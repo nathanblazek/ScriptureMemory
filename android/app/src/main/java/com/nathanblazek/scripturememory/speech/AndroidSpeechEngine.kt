@@ -31,6 +31,8 @@ class AndroidSpeechEngine(
     private val events: SpeechEvents,
     /** Where the audio comes from instead of the phone's microphone (Android 13+), e.g. the car's microphone. */
     private val audioSource: AudioSource? = null,
+    /** More phrases to steer the recognizer toward, such as spoken commands. */
+    private val extraBiasing: List<String> = emptyList(),
 ) : SpeechEngine {
     private val recognizer: SpeechRecognizer
     private val handler = Handler(Looper.getMainLooper())
@@ -110,6 +112,7 @@ class AndroidSpeechEngine(
         val result = ArrayList<String>()
         if (upcoming.isNotEmpty()) result += upcoming.joinToString(" ")
         upcoming.filterNot { Aligner.isFunctionWord(Tokenizer.key(it)) }.distinct().forEach { result += it }
+        result += extraBiasing
         return result
     }
 

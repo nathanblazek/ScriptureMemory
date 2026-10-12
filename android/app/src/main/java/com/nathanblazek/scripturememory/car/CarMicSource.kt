@@ -1,10 +1,14 @@
 package com.nathanblazek.scripturememory.car
 
 import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.annotation.RequiresPermission
 import androidx.car.app.CarContext
 import androidx.car.app.media.CarAudioRecord
+import androidx.car.app.versioning.CarAppApiLevels
+import androidx.core.content.ContextCompat
 import com.nathanblazek.scripturememory.speech.AudioSource
 import java.io.IOException
 import java.io.OutputStream
@@ -64,4 +68,12 @@ class CarMicSource @RequiresPermission(Manifest.permission.RECORD_AUDIO) constru
             out = null
         }
     }
+}
+
+/** The car's microphone where Android Auto and the recognizer support it; otherwise null (the phone's default input). */
+fun carMicOrNull(carContext: CarContext): AudioSource? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+    if (carContext.carAppApiLevel < CarAppApiLevels.LEVEL_5) return null
+    if (ContextCompat.checkSelfPermission(carContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return null
+    return runCatching { CarMicSource(carContext) }.getOrNull()
 }

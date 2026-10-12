@@ -19,6 +19,7 @@ sealed interface Screen {
     data object Collections : Screen
     data class Collection(val collectionId: String) : Screen
     data class Practice(val collectionId: String, val passageId: String) : Screen
+    data class Interact(val collectionId: String) : Screen
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -55,6 +56,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Screen.Collections -> return false
             is Screen.Collection -> Screen.Collections
             is Screen.Practice -> Screen.Collection(s.collectionId)
+            is Screen.Interact -> Screen.Collection(s.collectionId)
         }
         return true
     }

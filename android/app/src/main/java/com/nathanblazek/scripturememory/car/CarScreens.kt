@@ -36,6 +36,15 @@ class PassagesCarScreen(carContext: CarContext, private val collectionId: String
     override fun onGetTemplate(): Template {
         val collection = AppDataHolder.get(carContext).data.collections.firstOrNull { it.id == collectionId }
         val list = ItemList.Builder().setNoItemsMessage("This collection has no passages.")
+        if (!collection?.passages.isNullOrEmpty()) {
+            list.addItem(
+                Row.Builder()
+                    .setTitle("Voice coach")
+                    .addText("Learn every passage hands-free")
+                    .setOnClickListener { screenManager.push(CoachCarScreen(carContext, collectionId)) }
+                    .build()
+            )
+        }
         for (p in collection?.passages.orEmpty()) {
             list.addItem(
                 Row.Builder()

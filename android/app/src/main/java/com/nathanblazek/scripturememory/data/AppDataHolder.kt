@@ -35,6 +35,13 @@ class AppDataHolder private constructor(context: Context) {
         })
     )
 
+    fun setMastered(collectionId: String, passageId: String) = update(
+        data.copy(collections = data.collections.map { c ->
+            if (c.id != collectionId) c
+            else c.copy(passages = c.passages.map { if (it.id == passageId) it.copy(mastered = true) else it })
+        })
+    )
+
     companion object {
         @Volatile private var instance: AppDataHolder? = null
 

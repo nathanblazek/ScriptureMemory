@@ -46,6 +46,11 @@ fun App(vm: AppViewModel = viewModel()) {
             if (passage == null) LaunchedEffect(screen) { vm.open(Screen.Collection(screen.collectionId)) }
             else PracticeScreen(vm, screen.collectionId, passage, snackbar)
         }
+        is Screen.Interact -> {
+            val collection = vm.collection(screen.collectionId)
+            if (collection == null) LaunchedEffect(screen) { vm.open(Screen.Collections) }
+            else InteractScreen(vm, collection)
+        }
     }
 
     if (showKeyDialog || vm.askForApiKey) {

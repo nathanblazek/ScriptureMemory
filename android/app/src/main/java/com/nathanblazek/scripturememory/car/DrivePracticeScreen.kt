@@ -2,7 +2,6 @@ package com.nathanblazek.scripturememory.car
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.car.app.CarContext
@@ -10,7 +9,6 @@ import androidx.car.app.Screen
 import androidx.car.app.model.Action
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.model.Template
-import androidx.car.app.versioning.CarAppApiLevels
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -21,6 +19,7 @@ import com.nathanblazek.scripturememory.practice.PracticeMode
 import com.nathanblazek.scripturememory.practice.SpeechEvents
 import com.nathanblazek.scripturememory.speech.AndroidSpeechEngine
 import com.nathanblazek.scripturememory.speech.AudioSource
+import com.nathanblazek.scripturememory.speech.Voice
 
 /**
  * Hands-free practice, one verse at a time: the verse is read aloud, then the driver recites it
@@ -36,7 +35,7 @@ class DrivePracticeScreen(
 
     private val holder = AppDataHolder.get(carContext)
     private val verses = Verses.split(passage)
-    private val voice = CarVoice(carContext)
+    private val voice = Voice(carContext)
     private val handler = Handler(Looper.getMainLooper())
 
     private var index = 0
@@ -90,7 +89,7 @@ class DrivePracticeScreen(
     private fun startReciting() {
         val verse = verses[index]
         val c = PracticeController(verse.text, holder.data.voiceProfile, strictMisses = true) { words, start, _, events ->
-            AndroidSpeechEngine(carContext, words, start, Failures(events), carMicOrNull())
+            AndroidSpeechEngine(carContext, words, start, Failures(events), carMicOrNull(carContext))
         }
         c.onWordMissed = { word -> handler.post { onMissed(word) } }
         c.onPracticeCompleted = { handler.post { onVerseDone() } }
@@ -164,14 +163,6 @@ class DrivePracticeScreen(
         carContext.requestPermissions(listOf(Manifest.permission.RECORD_AUDIO)) { granted, _ ->
             if (Manifest.permission.RECORD_AUDIO in granted) startVerse()
         }
-    }
-
-    /** The car's microphone where Android Auto and the recognizer support it; otherwise the phone's default input. */
-    private fun carMicOrNull(): AudioSource? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-        if (carContext.carAppApiLevel < CarAppApiLevels.LEVEL_5) return null
-        if (ContextCompat.checkSelfPermission(carContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return null
-        return runCatching { CarMicSource(carContext) }.getOrNull()
     }
 
     /** Surfaces recognizer failures on the car screen. */

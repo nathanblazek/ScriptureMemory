@@ -9,6 +9,26 @@ The Android version of Scripture Memory, written in Kotlin with Jetpack Compose.
 - **Calibrate voice**: read a passage aloud with the text showing so words the recognizer finds hard to hear in your voice get extra leeway.
 - **Progress**: completion counts and a "mastered" flag per passage.
 - **Android Auto**: hands-free practice while driving (see below).
+- **Interact** (voice coach): hands-free learning of a whole collection (see below).
+
+## Interact: the voice coach
+
+Open a collection and tap **Interact**. The coach starts with the first passage you haven't mastered: it reads the passage, then you recite it. When you reach the end it tells you what you left out or said out of order, with the passage around it, and asks you to try again. Two perfect recitations in a row marks the passage mastered and moves on to the next.
+
+Say "verse" and then a command at any time:
+
+| Say | What happens |
+| --- | --- |
+| verse yes | Start the passage again |
+| verse review | Stop and hear how it went |
+| verse speak | Hear the passage read aloud, then start over |
+| verse hint | Hear the next few words, then carry on |
+| verse all | Recite the whole collection from the top, one passage after another |
+| verse next | Skip to the next passage |
+| verse help | Hear the commands |
+| verse stop | End the session |
+
+The screen stays on while the coach runs, and the buttons do the same as the commands. The coach is also in Android Auto, as **Voice coach** at the top of a collection's passages.
 
 ## Android Auto
 

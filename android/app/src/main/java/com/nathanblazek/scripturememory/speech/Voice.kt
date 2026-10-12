@@ -1,4 +1,4 @@
-package com.nathanblazek.scripturememory.car
+package com.nathanblazek.scripturememory.speech
 
 import android.content.Context
 import android.media.AudioAttributes
@@ -11,8 +11,8 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
-/** Reads verses aloud and plays the wrong-word blip. Callbacks arrive on the main thread. */
-class CarVoice(context: Context) {
+/** Reads text aloud and plays the wrong-word blip. Callbacks arrive on the main thread. */
+class Voice(context: Context) {
     private val handler = Handler(Looper.getMainLooper())
     private val audio = context.getSystemService(AudioManager::class.java)
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -65,9 +65,13 @@ class CarVoice(context: Context) {
             !initialized -> pending = { speak(text, onDone) }
             !ready -> onDone()
             else -> {
-                val id = "u${nextId++}"
-                callbacks[id] = onDone
-                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+                // Long passages go out in sentence-sized pieces; the engine caps each utterance.
+                val pieces = split(text, TextToSpeech.getMaxSpeechInputLength() - 100)
+                pieces.forEachIndexed { i, piece ->
+                    val id = "u${nextId++}"
+                    if (i == pieces.lastIndex) callbacks[id] = onDone
+                    tts.speak(piece, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, id)
+                }
             }
         }
     }
@@ -92,6 +96,23 @@ class CarVoice(context: Context) {
 
     private fun finished(id: String?) {
         handler.post { callbacks.remove(id)?.invoke() }
+    }
+
+    private fun split(text: String, max: Int): List<String> {
+        if (text.length <= max) return listOf(text)
+        val pieces = mutableListOf<String>()
+        val current = StringBuilder()
+        for (sentence in text.split(Regex("(?<=[.;:!?])\\s+"))) {
+            if (current.isNotEmpty() && current.length + sentence.length + 1 > max) {
+                pieces += current.toString()
+                current.clear()
+            }
+            if (current.isNotEmpty()) current.append(' ')
+            current.append(sentence)
+        }
+        if (current.isNotEmpty()) pieces += current.toString()
+        // A single sentence longer than the limit is cut wherever it falls.
+        return pieces.flatMap { it.chunked(max) }
     }
 
     private companion object {
