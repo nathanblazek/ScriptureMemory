@@ -1,6 +1,7 @@
 package com.nathanblazek.scripturememory.ui
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,6 +12,7 @@ import com.nathanblazek.scripturememory.data.AppJson
 import com.nathanblazek.scripturememory.data.AppDataHolder
 import com.nathanblazek.scripturememory.data.EsvClient
 import com.nathanblazek.scripturememory.data.EsvException
+import com.nathanblazek.scripturememory.data.Sections
 import com.nathanblazek.scripturememory.model.AppData
 import com.nathanblazek.scripturememory.model.Passage
 import com.nathanblazek.scripturememory.model.VerseCollection
@@ -105,6 +107,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val apiKey: String get() = keys.get()
 
+    private val prefs = app.getSharedPreferences("preferences", Context.MODE_PRIVATE)
+
+    /** Add a passage that spans several ESV sections as one passage per section. */
+    var splitSections by mutableStateOf(prefs.getBoolean(PREF_SPLIT_SECTIONS, true))
+        private set
+
+    fun updateSplitSections(split: Boolean) {
+        splitSections = split
+        prefs.edit().putBoolean(PREF_SPLIT_SECTIONS, split).apply()
+    }
+
     fun setApiKey(key: String) = keys.set(key)
 
     /** Fetches [query] from the ESV API and adds it. Returns true if it was added. */
@@ -118,13 +131,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         busy = true
         try {
             val (canonical, text) = EsvClient.getPassage(key, query)
+            val sections = if (splitSections) {
+                runCatching { Sections.split(canonical, text, EsvClient.getPassage(key, query, headings = true).second) }.getOrDefault(emptyList())
+            } else {
+                emptyList()
+            }
             val current = collection(collectionId) ?: return false
-            if (current.passages.any { it.reference == canonical }) {
-                message = "$canonical is already in this collection."
+            val existing = current.passages.map { it.reference }.toSet()
+
+            if (sections.isEmpty()) {
+                if (canonical in existing) {
+                    message = "$canonical is already in this collection."
+                    return false
+                }
+                updateCollection(collectionId) { it.copy(passages = it.passages + Passage(reference = canonical, query = query, text = text)) }
+                message = "Added $canonical."
+                return true
+            }
+
+            val added = sections.filter { it.reference !in existing }
+                .map { Passage(reference = it.reference, query = query, text = it.text, title = it.heading) }
+            if (added.isEmpty()) {
+                message = "Every section of $canonical is already in this collection."
                 return false
             }
-            updateCollection(collectionId) { it.copy(passages = it.passages + Passage(reference = canonical, query = query, text = text)) }
-            message = "Added $canonical."
+            updateCollection(collectionId) { it.copy(passages = it.passages + added) }
+            message = "Added $canonical in ${added.size} sections."
             return true
         } catch (e: EsvException) {
             message = e.message
@@ -194,5 +226,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         update(data.copy(collections = merged))
         message = "Imported $newCollections new collection(s) and $newPassages passage(s)."
+    }
+
+    private companion object {
+        const val PREF_SPLIT_SECTIONS = "splitSections"
     }
 }

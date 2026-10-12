@@ -22,7 +22,6 @@ object EsvClient {
             "&include-first-verse-numbers=true" +
             "&include-footnotes=false" +
             "&include-footnote-body=false" +
-            "&include-headings=false" +
             "&include-short-copyright=false" +
             "&include-copyright=false" +
             "&include-selahs=true" +
@@ -33,8 +32,11 @@ object EsvClient {
             "&line-length=0"
 
     /** Returns the canonical reference and the passage text. */
-    suspend fun getPassage(apiKey: String, query: String): Pair<String, String> = withContext(Dispatchers.IO) {
-        val url = URL("https://api.esv.org/v3/passage/text/?q=" + URLEncoder.encode(query, "UTF-8") + OPTIONS)
+    suspend fun getPassage(apiKey: String, query: String, headings: Boolean = false): Pair<String, String> = withContext(Dispatchers.IO) {
+        val url = URL(
+            "https://api.esv.org/v3/passage/text/?q=" + URLEncoder.encode(query, "UTF-8") + OPTIONS +
+                "&include-headings=$headings"
+        )
         val conn = url.openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 20_000

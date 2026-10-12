@@ -3,6 +3,7 @@
 The Android version of Scripture Memory, written in Kotlin with Jetpack Compose. It has the same features as the Windows app:
 
 - **Collections** of passages, added by book/chapter/verses or by typing any reference (`Romans 8:28-39`, `John 3:16-4:2`).
+- **Section splitting**: with *Split at section headings* on (the default), a long passage is added as one passage per ESV section, titled with its heading.
 - **ESV text** from the [ESV API](https://api.esv.org/) (set your key under ⋮ › ESV API key; it's stored encrypted with the Android Keystore).
 - **Practice views**: Show all, First letters, Blur. Tap a hidden word to peek; Reset hides everything again.
 - **Speak**: recite out loud and words are revealed as you say them, using the same forgiving matcher as the Windows app (dropped small words, near-misses, restarts).

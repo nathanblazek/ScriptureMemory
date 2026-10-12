@@ -48,7 +48,7 @@ class PassagesCarScreen(carContext: CarContext, private val collectionId: String
         for (p in collection?.passages.orEmpty()) {
             list.addItem(
                 Row.Builder()
-                    .setTitle(p.reference)
+                    .setTitle(p.title?.let { "${p.reference} · $it" } ?: p.reference)
                     .addText(if (p.mastered) "Mastered · ${p.status}" else p.status)
                     .setOnClickListener { screenManager.push(DrivePracticeScreen(carContext, collectionId, p)) }
                     .build()

@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -248,6 +249,21 @@ private fun AddVersesCard(vm: AppViewModel, collectionId: String) {
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Add reference") }
 
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable { vm.updateSplitSections(!vm.splitSections) },
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Split at section headings")
+                    Text(
+                        "A long passage is added as one passage per ESV section, like “The Woman Caught in Adultery”.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = vm.splitSections, onCheckedChange = { vm.updateSplitSections(it) })
+            }
+
             if (vm.busy) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -263,6 +279,7 @@ private fun PassageCard(passage: Passage, onPractice: () -> Unit, onMastered: (B
     Card(onClick = onPractice, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(passage.reference, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            passage.title?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
             Text(
                 passage.preview,
                 maxLines = 2,

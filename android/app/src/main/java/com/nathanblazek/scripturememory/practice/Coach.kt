@@ -47,6 +47,8 @@ data class CoachState(
     val index: Int,
     val count: Int,
     val reference: String,
+    /** The ESV section heading, if any. */
+    val title: String?,
     val passageText: String,
     /** Perfect recitations in a row of this passage, out of [masteryGoal]. */
     val streak: Int,
@@ -98,6 +100,7 @@ class Coach(
             index = index,
             count = passages.size,
             reference = passages.getOrNull(index)?.reference.orEmpty(),
+            title = passages.getOrNull(index)?.title,
             passageText = passages.getOrNull(index)?.let { recitation.spokenText }.orEmpty(),
             streak = streak,
             masteryGoal = masteryGoal,
@@ -144,10 +147,13 @@ class Coach(
         recitation = recitationFor(i)
         lastFeedback = ""
         when (mode) {
-            CoachMode.Learn -> say("$lead ${passage.reference}. Listen first. ${recitation.spokenText} Now you say it.") { beginAttempt() }
-            CoachMode.All -> say("$lead ${passage.reference}.") { beginAttempt() }
+            CoachMode.Learn -> say("$lead ${named(passage)}. Listen first. ${recitation.spokenText} Now you say it.") { beginAttempt() }
+            CoachMode.All -> say("$lead ${named(passage)}.") { beginAttempt() }
         }
     }
+
+    /** "John 8:1–11, The Woman Caught in Adultery" */
+    private fun named(p: Passage) = p.title?.let { "${p.reference}, $it" } ?: p.reference
 
     private fun startAll(lead: String = "From the top.") {
         mode = CoachMode.All

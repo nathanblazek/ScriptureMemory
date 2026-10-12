@@ -25,6 +25,8 @@ data class Passage(
     @SerialName("LastPracticed") val lastPracticed: String? = null,
     @SerialName("PracticeCount") val practiceCount: Int = 0,
     @SerialName("Mastered") val mastered: Boolean = false,
+    /** The ESV section heading, when the passage is one section of a longer one. */
+    @SerialName("Title") val title: String? = null,
 ) {
     val preview: String
         get() {

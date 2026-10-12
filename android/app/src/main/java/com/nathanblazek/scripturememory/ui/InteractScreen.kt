@@ -109,6 +109,7 @@ fun InteractScreen(vm: AppViewModel, collection: VerseCollection) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(state.reference, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                state.title?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
                 if (state.mode == CoachMode.Learn && state.count > 0) {
                     Text(
                         "Perfect in a row: ${state.streak} of ${state.masteryGoal}",
