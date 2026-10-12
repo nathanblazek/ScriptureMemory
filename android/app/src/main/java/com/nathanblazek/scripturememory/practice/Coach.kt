@@ -27,6 +27,9 @@ interface CoachIO {
 
     /** Recited perfectly once. */
     fun practiced(passage: Passage)
+
+    /** The voice profile learned something and should be saved. */
+    fun profileChanged()
 }
 
 enum class CoachMode {
@@ -95,6 +98,13 @@ class Coach(
     private var error = ""
     private var lastFeedback = ""
 
+    /** The top guess of the utterance in progress, kept in case the final result drops words. */
+    private var lastPartial: List<HeardWord>? = null
+
+    /** The last verse corrected, so "verse correct" can say it was right after all. */
+    private class Flagged(val recitation: Recitation, val verse: Int, val fromVerse: Int, val correctedBefore: Boolean)
+    private var flagged: Flagged? = null
+
     /** Where to go back to when a command interrupts (help, speak, hint). */
     private var resumePhase = CoachPhase.Reciting
 
@@ -159,6 +169,7 @@ class Coach(
         verses = Verses.split(passage)
         fromVerse = 0
         corrected = false
+        flagged = null
         recitation = recitationFor(i)
         lastFeedback = ""
         when (mode) {
@@ -206,6 +217,7 @@ class Coach(
     /** A fresh recitation of the current passage, from verse [from] on. */
     private fun beginAttempt(from: Int = fromVerse) {
         fromVerse = from
+        lastPartial = null
         recitation = recitationFrom(from)
         listenFor(CoachPhase.Reciting)
     }
@@ -213,6 +225,7 @@ class Coach(
     /** Stops the reciter at a verse they got wrong, reads it to them, and has them go again from there. */
     private fun correct(verse: Int) {
         io.stopListening()
+        flagged = Flagged(recitation, verse - fromVerse, verse, corrected)
         streak = 0
         corrected = true
         val v = verses.getOrNull(verse)
@@ -236,15 +249,31 @@ class Coach(
             say("I haven't heard any of ${passage.reference} yet. Go ahead and say it.") { beginAttempt() }
             return
         }
-        recitation.firstWrongVerse(grade, includeCurrent = true)?.let {
+        wrongVerse(includeCurrent = true)?.let {
             correct(fromVerse + it)
             return
         }
-        if (!grade.reachedEnd) {
+        if (!recitation.grade().reachedEnd) {
             say("So far so good. Keep going.") { resume() }
             return
         }
+        if (recitation.learnFromSuccess()) io.profileChanged()
+        segmentDone("Perfect.")
+    }
 
+    /**
+     * The first verse wrong in what's been recited, after looking again at everything heard (the
+     * recognizer's other guesses) before calling any verse wrong. Relative to [fromVerse].
+     */
+    private fun wrongVerse(includeCurrent: Boolean = false): Int? {
+        while (true) {
+            val v = recitation.firstWrongVerse(recitation.grade(), includeCurrent) ?: return null
+            if (!recitation.reassess(v)) return v
+        }
+    }
+
+    /** The reciter got to the end of the passage with every verse right. */
+    private fun segmentDone(praise: String) {
         if (corrected || fromVerse > 0) {
             // The fixed verses are right now; the whole passage still has to be said in one go.
             corrected = false
@@ -255,18 +284,18 @@ class Coach(
             return
         }
 
-        lastFeedback = "Perfect."
+        lastFeedback = praise
         streak++
         io.practiced(passage)
         when {
             mode == CoachMode.All ->
-                if (index + 1 < passages.size) goTo(index + 1, "Perfect. Next,") else say("Perfect.") { finishCollection() }
+                if (index + 1 < passages.size) goTo(index + 1, "$praise Next,") else say(praise) { finishCollection() }
             streak >= masteryGoal -> {
                 masteredIds += passage.id
                 io.mastered(passage)
-                say("Perfect. You've mastered ${passage.reference}.") { advance() }
+                say("$praise You've mastered ${passage.reference}.") { advance() }
             }
-            else -> say("Perfect. Say it once more to lock it in.") { beginAttempt(0) }
+            else -> say("$praise Say it once more to lock it in.") { beginAttempt(0) }
         }
     }
 
@@ -297,9 +326,12 @@ class Coach(
         if (phase != CoachPhase.Reciting && phase != CoachPhase.Waiting && phase != CoachPhase.Finished) return
         heard = candidates.firstOrNull()?.joinToString(" ") { it.text }.orEmpty()
         if (!final) {
+            candidates.firstOrNull()?.takeIf { it.isNotEmpty() }?.let { lastPartial = it }
             emit()
             return
         }
+        val partial = lastPartial
+        lastPartial = null
 
         val found = VoiceCommands.find(candidates)
         if (found != null) {
@@ -309,15 +341,14 @@ class Coach(
         }
 
         if (phase == CoachPhase.Reciting) {
-            recitation.add(candidates)
+            recitation.add(candidates, partial)
             io.setPosition(recitation.position())
-            val grade = recitation.grade()
-            val wrong = recitation.firstWrongVerse(grade)
+            val wrong = wrongVerse()
             if (wrong != null) {
                 correct(fromVerse + wrong)
                 return
             }
-            if (grade.reachedEnd) {
+            if (recitation.grade().reachedEnd) {
                 finishAttempt()
                 return
             }
@@ -387,7 +418,28 @@ class Coach(
             VoiceCommand.All -> startAll()
             VoiceCommand.Next -> advance()
             VoiceCommand.Help -> say(VoiceCommands.helpText()) { resume() }
+            VoiceCommand.Correct -> saidItRight()
             VoiceCommand.Stop -> stop()
+        }
+    }
+
+    /** "Verse correct": the last verse called wrong was right; learn how the recognizer heard it. */
+    private fun saidItRight() {
+        val f = flagged
+        if (f == null) {
+            say("There's nothing to correct right now.") { resume() }
+            return
+        }
+        flagged = null
+        f.recitation.learnVerseWasRight(f.verse - f.fromVerse)
+        io.profileChanged()
+        corrected = f.correctedBefore
+        val next = f.verse + 1
+        if (next < verses.size) {
+            say("Got it, I'll remember how you say that. Carry on from ${verses[next].label}.") { beginAttempt(next) }
+        } else {
+            fromVerse = f.fromVerse
+            say("Got it, I'll remember how you say that.") { segmentDone("Good.") }
         }
     }
 

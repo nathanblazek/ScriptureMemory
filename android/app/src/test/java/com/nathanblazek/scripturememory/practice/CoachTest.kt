@@ -1,6 +1,7 @@
 package com.nathanblazek.scripturememory.practice
 
 import com.nathanblazek.scripturememory.model.Passage
+import com.nathanblazek.scripturememory.model.VoiceProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +26,7 @@ class CoachTest {
         override fun stopListening() { listening = false }
         override fun mastered(passage: Passage) { mastered += passage.id }
         override fun practiced(passage: Passage) {}
+        override fun profileChanged() {}
     }
 
     private fun Coach.hear(text: String) = onHeard(listOf(text.split(" ").map { HeardWord(it, 0.9f) }), final = true)
@@ -83,6 +85,46 @@ class CoachTest {
         coach.hear("pray without ceasing give thanks in all circumstances")
         assertEquals("Good. Now say all of 1 Thessalonians 5:16–18 from the start.", io.said.last())
         coach.hear("rejoice always pray without ceasing give thanks in all circumstances")
+        assertEquals("Perfect. Say it once more to lock it in.", io.said.last())
+    }
+
+    @Test
+    fun otherGuessesAreCheckedBeforeCallingAVerseWrong() {
+        val io = FakeIO()
+        val passage = Passage(id = "d", reference = "1 Thessalonians 5:16–17", text = "[16] Rejoice always, [17] pray without ceasing,")
+        val coach = Coach(listOf(passage), null, io)
+        coach.start()
+        val said = io.said.size
+        // The top guess drops "always"; the recognizer's second guess has it.
+        coach.onHeard(
+            listOf(
+                "rejoice pray without".split(" ").map { HeardWord(it, 0.9f) },
+                "rejoice always pray without".split(" ").map { HeardWord(it, 0.5f) },
+            ),
+            final = true,
+        )
+        assertEquals(said, io.said.size) // no correction
+        coach.hear("ceasing")
+        assertEquals("Perfect. Say it once more to lock it in.", io.said.last())
+    }
+
+    @Test
+    fun saidItRightLearnsTheVoice() {
+        val io = FakeIO()
+        val profile = VoiceProfile()
+        val passage = Passage(id = "e", reference = "1 Thessalonians 5:16–17", text = "[16] Rejoice always, [17] pray without ceasing,")
+        val coach = Coach(listOf(passage), profile, io)
+        coach.start()
+        coach.hear("rejoice hello pray without")
+        assertTrue(io.said.last(), io.said.last().startsWith("That's not quite right. 1 Thessalonians 5:16."))
+
+        coach.hear("verse correct")
+        assertTrue(profile.isHeardAs("always", "hello"))
+        assertEquals("Got it, I'll remember how you say that. Carry on from 1 Thessalonians 5:17.", io.said.last())
+
+        // Next time "hello" is taken as "always".
+        coach.hear("pray without ceasing")
+        coach.hear("rejoice hello pray without ceasing")
         assertEquals("Perfect. Say it once more to lock it in.", io.said.last())
     }
 

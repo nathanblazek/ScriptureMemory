@@ -57,6 +57,12 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
     private val lastNeededPart: Int =
         parts.indexOfLast { !Aligner.isEasySkip(it.second, profile) }.let { if (it < 0) parts.size - 1 else it }
 
+    /** One utterance: all of the recognizer's guesses, and the one in use. */
+    private class Utterance(val candidates: List<List<HeardWord>>, var chosen: Int)
+
+    private val utterances = mutableListOf<Utterance>()
+
+    /** The chosen guess of every utterance, in order. */
     private val heard = mutableListOf<HeardWord>()
 
     /** Indexes into [heard] where an utterance began; the recognizer tends to lose words around these. */
@@ -65,17 +71,73 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
     val isEmpty: Boolean get() = heard.isEmpty()
 
     fun clear() {
-        heard.clear()
-        utteranceStarts.clear()
+        utterances.clear()
+        rebuild()
     }
 
-    /** Adds one utterance, choosing whichever of the recognizer's guesses fits the passage best. */
-    fun add(candidates: List<List<HeardWord>>) {
-        val usable = candidates.map { c -> c.filter { Tokenizer.key(it.text).isNotEmpty() } }.filter { it.isNotEmpty() }
+    private fun rebuild() {
+        heard.clear()
+        utteranceStarts.clear()
+        for (u in utterances) {
+            utteranceStarts += heard.size
+            heard += u.candidates[u.chosen]
+        }
+    }
+
+    /**
+     * Adds one utterance, choosing whichever of the recognizer's guesses fits the passage best. The
+     * last partial result is kept as one more guess: it sometimes has words the final result dropped.
+     */
+    fun add(candidates: List<List<HeardWord>>, partial: List<HeardWord>? = null) {
+        val usable = (candidates + listOfNotNull(partial))
+            .map { c -> c.filter { Tokenizer.key(it.text).isNotEmpty() } }
+            .filter { it.isNotEmpty() }
+            .distinctBy { c -> c.joinToString(" ") { Tokenizer.key(it.text) } }
         if (usable.isEmpty()) return
-        val best = usable.maxBy { align(heard + it)?.score ?: Double.NEGATIVE_INFINITY }
-        utteranceStarts += heard.size
-        heard += best
+        val best = usable.indices.maxBy { align(heard + usable[it])?.score ?: Double.NEGATIVE_INFINITY }
+        utterances += Utterance(usable, best)
+        rebuild()
+    }
+
+    /**
+     * Before calling [verse] wrong, looks again at everything heard: tries the recognizer's other
+     * guesses for each utterance, keeping any that make the verse come out right (without losing
+     * ground elsewhere). Returns true if the verse is right after all.
+     */
+    fun reassess(verse: Int): Boolean {
+        val baseline = grade()
+        fun wrongIn(g: Grade): Int =
+            if (g.lastWord < baseline.lastWord) Int.MAX_VALUE else mistakesIn(g, verse).size + g.mistakes.size
+
+        var current = wrongIn(baseline)
+        for (u in utterances) {
+            if (mistakesIn(grade(), verse).isEmpty()) return true
+            if (u.candidates.size < 2) continue
+            var best = u.chosen
+            for (c in u.candidates.indices) {
+                if (c == u.chosen) continue
+                val keep = u.chosen
+                u.chosen = c
+                rebuild()
+                val n = wrongIn(grade())
+                if (n < current) {
+                    current = n
+                    best = c
+                }
+                u.chosen = keep
+                rebuild()
+            }
+            u.chosen = best
+            rebuild()
+        }
+        return mistakesIn(grade(), verse).isEmpty()
+    }
+
+    private fun verseRange(v: Int): IntRange = verseStarts[v] until (verseStarts.getOrNull(v + 1) ?: words.size)
+
+    private fun mistakesIn(g: Grade, verse: Int): List<Mistake> {
+        val r = verseRange(verse)
+        return g.mistakes.filter { it.first <= r.last && it.last >= r.first }
     }
 
     /** The part the reciter should say next (for steering the recognizer). */
@@ -171,6 +233,69 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
         return forgiven
     }
 
+    /** A stretch of expected words that wasn't matched, and what was heard in its place. */
+    private class Gap(val expected: List<Int>, val heardThere: List<String>)
+
+    /** Every unmatched stretch before the last word recited. */
+    private fun gaps(): List<Gap> {
+        val a = align(heard) ?: return emptyList()
+        val spokenAt = a.matches.associate { (spoken, target) -> target to spoken }
+        val matched = a.matchedTargets.sorted()
+        val result = mutableListOf<Gap>()
+        var prev = -1
+        for (m in matched) {
+            if (m > prev + 1) {
+                val from = if (prev >= 0) spokenAt.getValue(prev) + 1 else 0
+                result += Gap((prev + 1 until m).toList(), heard.subList(from, spokenAt.getValue(m)).map { Tokenizer.key(it.text) })
+            }
+            prev = m
+        }
+        return result
+    }
+
+    /** Pairs the words heard in a gap with the words expected there, each with the one it sounds most like. */
+    private fun learnGap(gap: Gap, profile: VoiceProfile) {
+        val expected = gap.expected.map { parts[it].second }
+        if (gap.heardThere.isEmpty()) {
+            expected.forEach { profile.recordMissed(it) } // the recognizer didn't pick these up at all
+            return
+        }
+        if (gap.heardThere.size == expected.size) {
+            expected.zip(gap.heardThere).forEach { (e, h) -> profile.recordHeardAs(e, h) }
+        } else {
+            for (h in gap.heardThere) profile.recordHeardAs(expected.maxBy { Aligner.similarity(h, it) }, h)
+        }
+    }
+
+    /**
+     * After a recitation that came out right, learns how the recognizer mishears this voice, from
+     * the words it took as sound-alikes. Returns true if anything was learned.
+     */
+    fun learnFromSuccess(): Boolean {
+        val p = profile ?: return false
+        var learned = false
+        for (g in gaps()) {
+            if (g.heardThere.isEmpty() || g.expected.size > MAX_MISHEARD_RUN) continue
+            if (g.heardThere.all { h -> g.expected.any { Aligner.similarity(h, parts[it].second) > SOUNDS_LIKE } }) {
+                learnGap(g, p)
+                learned = true
+            }
+        }
+        return learned
+    }
+
+    /**
+     * The reciter says they said [verse] right even though it sounded wrong: learns how the
+     * recognizer heard each expected word there, so it's recognized next time.
+     */
+    fun learnVerseWasRight(verse: Int) {
+        val p = profile ?: return
+        val r = verseRange(verse)
+        for (g in gaps()) {
+            if (g.expected.any { parts[it].first in r }) learnGap(g, p)
+        }
+    }
+
     /**
      * The first verse (0-based) with a mistake in it among those the reciter has finished: moved a
      * couple of words into the next verse, or reached the end. [includeCurrent] also counts the verse
@@ -179,8 +304,8 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
     fun firstWrongVerse(grade: Grade, includeCurrent: Boolean = false): Int? {
         if (!grade.heardAnything) return null
         for (v in verseStarts.indices) {
-            val start = verseStarts[v]
-            val end = (verseStarts.getOrNull(v + 1) ?: words.size) - 1
+            val start = verseRange(v).first
+            val end = verseRange(v).last
             val finished = grade.reachedEnd || grade.lastWord >= end + 2 || (includeCurrent && grade.lastWord >= start)
             if (!finished) break
             if (grade.mistakes.any { it.first <= end && it.last >= start }) return v

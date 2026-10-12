@@ -141,6 +141,7 @@ fun InteractScreen(vm: AppViewModel, collection: VerseCollection) {
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { session.coach.command(VoiceCommand.Yes) }) { Text("Try again") }
+                OutlinedButton(onClick = { session.coach.command(VoiceCommand.Correct) }) { Text("I said it right") }
                 OutlinedButton(onClick = { session.coach.command(VoiceCommand.Review) }) { Text("Review") }
                 OutlinedButton(onClick = { session.coach.command(VoiceCommand.Speak) }) { Text("Speak") }
                 OutlinedButton(onClick = { session.coach.command(VoiceCommand.Hint) }) { Text("Hint") }

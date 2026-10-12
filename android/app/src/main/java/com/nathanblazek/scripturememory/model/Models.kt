@@ -73,7 +73,21 @@ class WordStat(
 @Serializable
 class VoiceProfile(
     @SerialName("Words") val words: MutableMap<String, WordStat> = mutableMapOf(),
+    /**
+     * Words the recognizer has turned into other words in this user's voice ("faith" heard as
+     * "fate"), learned from recitations that turned out right: expected word → heard word → times.
+     */
+    @SerialName("HeardAs") val heardAs: MutableMap<String, MutableMap<String, Double>> = mutableMapOf(),
 ) {
+    fun recordHeardAs(expected: String, heard: String) {
+        if (expected == heard || expected.isEmpty() || heard.isEmpty()) return
+        val m = heardAs.getOrPut(expected) { mutableMapOf() }
+        m[heard] = (m[heard] ?: 0.0) + 1.0
+    }
+
+    /** The recognizer has heard [expected] as [heard] before, so the two count as the same word. */
+    fun isHeardAs(expected: String, heard: String): Boolean = (heardAs[expected]?.get(heard) ?: 0.0) >= 1.0
+
     fun recordHeard(key: String, confidence: Double) {
         val s = get(key)
         s.heard++

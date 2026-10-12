@@ -74,6 +74,10 @@ class VoiceCoach(
         runCatching { holder.setMastered(collectionId, passage.id) }
     }
 
+    override fun profileChanged() {
+        runCatching { holder.save() }
+    }
+
     override fun practiced(passage: Passage) {
         runCatching { holder.recordPractice(collectionId, passage.id) }
     }

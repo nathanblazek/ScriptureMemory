@@ -85,7 +85,7 @@ class CoachCarScreen(carContext: CarContext, private val collectionId: String) :
             .setTitle(title)
             .setHeaderAction(Action.BACK)
             .addAction(action("Try again") { session?.coach?.command(VoiceCommand.Yes) })
-            .addAction(action("Speak") { session?.coach?.command(VoiceCommand.Speak) })
+            .addAction(action("I said it right") { session?.coach?.command(VoiceCommand.Correct) })
             .build()
     }
 

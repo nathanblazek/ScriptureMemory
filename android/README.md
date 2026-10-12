@@ -26,8 +26,11 @@ Say "verse" and then a command at any time:
 | verse hint | Hear the next few words, then carry on |
 | verse all | Recite the whole collection from the top, one passage after another |
 | verse next | Skip to the next passage |
+| verse correct | You said the verse right: the coach learns how it heard you and carries on |
 | verse help | Hear the commands |
 | verse stop | End the session |
+
+Before calling a verse wrong, the coach rechecks everything it heard, including the recognizer's other guesses. It also learns your voice as you go: words it mishears in recitations that turn out right, and any verse you tell it was right with *verse correct*, are remembered (with your calibration data) so they're recognized next time.
 
 The screen stays on while the coach runs, and the buttons do the same as the commands. The coach is also in Android Auto, as **Voice coach** at the top of a collection's passages.
 

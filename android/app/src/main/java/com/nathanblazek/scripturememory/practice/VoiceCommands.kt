@@ -8,6 +8,7 @@ enum class VoiceCommand(val word: String, val description: String) {
     Hint("hint", "hear the next few words"),
     All("all", "recite the whole collection from the top"),
     Next("next", "skip to the next passage"),
+    Correct("correct", "tell me you said it right, so I learn your voice"),
     Help("help", "hear these commands"),
     Stop("stop", "end the session"),
 }
@@ -23,6 +24,7 @@ object VoiceCommands {
         listOf("reviews", "preview").forEach { put(it, VoiceCommand.Review) }
         listOf("speech", "speaks").forEach { put(it, VoiceCommand.Speak) }
         listOf("hints").forEach { put(it, VoiceCommand.Hint) }
+        listOf("corrects", "correctly", "right").forEach { put(it, VoiceCommand.Correct) }
         listOf("ol", "awl").forEach { put(it, VoiceCommand.All) }
         listOf("stops").forEach { put(it, VoiceCommand.Stop) }
     }

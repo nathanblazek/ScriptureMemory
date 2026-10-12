@@ -90,7 +90,7 @@ object Aligner {
                 if (j < n) relax(i, j + 1, cur - skipCost[j], 2)
                 if (i < m) relax(i + 1, j, cur - EXTRA_SPOKEN_COST, 1)
                 if (i < m && j < n) {
-                    val sim = similarity(spoken[i], targets[j])
+                    val sim = if (profile?.isHeardAs(targets[j], spoken[i]) == true) 1.0 else similarity(spoken[i], targets[j])
                     val threshold = max(MIN_MATCH_THRESHOLD, MATCH_THRESHOLD - spokenLeeway[i] - targetLeeway[j])
                     if (sim >= threshold) relax(i + 1, j + 1, cur + 1 + sim, 3)
                 }
