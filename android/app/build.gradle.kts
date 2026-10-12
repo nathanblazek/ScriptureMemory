@@ -13,8 +13,19 @@ android {
         applicationId = "com.nathanblazek.scripturememory"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.3.1"
+    }
+
+    // One fixed debug key, so every build from CI (whose runners would otherwise each make their own)
+    // installs as an update over the last one and keeps the app's data.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
