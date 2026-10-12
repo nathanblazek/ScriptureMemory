@@ -13,8 +13,8 @@ android {
         applicationId = "com.nathanblazek.scripturememory"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.4"
+        versionCode = 7
+        versionName = "1.4.1"
     }
 
     // One fixed debug key, so every build from CI (whose runners would otherwise each make their own)

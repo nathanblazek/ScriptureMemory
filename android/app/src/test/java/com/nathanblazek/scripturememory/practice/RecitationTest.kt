@@ -54,6 +54,25 @@ class RecitationTest {
     }
 
     @Test
+    fun wordsLostBetweenUtterancesAreForgiven() {
+        // "grace you" fell in the gap while the recognizer restarted.
+        val r = said("for by", "have been saved through faith and this is not your own doing it is the gift of god")
+        assertTrue(r.grade().perfect)
+    }
+
+    @Test
+    fun misheardWordsAreForgiven() {
+        val r = said("for by race you have been saved through fate and this is not your own doing it is the gift of god")
+        assertTrue(r.grade().perfect)
+    }
+
+    @Test
+    fun wrongWordsAreNotForgiven() {
+        val r = said("for by love you have been saved through faith and this is not your own doing it is the gift of god")
+        assertEquals(listOf(Mistake(Mistake.Kind.Missed, 2, 2)), r.grade().mistakes)
+    }
+
+    @Test
     fun nothingHeard() {
         val r = said("hello there")
         assertFalse(r.grade().heardAnything)

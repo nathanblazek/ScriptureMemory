@@ -319,7 +319,12 @@ class PracticeController(
         if (calibrating && final && cursor >= parts.size) finishCalibration(save = true)
     }
 
-    private class HeardMatch(val alignment: Aligner.Alignment, val windowStart: Int, val confidence: List<Float>) {
+    private class HeardMatch(
+        val alignment: Aligner.Alignment,
+        val windowStart: Int,
+        val confidence: List<Float>,
+        val heardKeys: List<String>,
+    ) {
         fun partIndex(target: Int) = windowStart + target
         val lastPart get() = windowStart + alignment.lastMatchedTarget
     }
@@ -340,7 +345,7 @@ class PracticeController(
             val heard = heardWords.map { Tokenizer.key(it.text) to it.confidence }.filter { it.first.isNotEmpty() }
             val confidence = heard.map { it.second }
             val a = Aligner.align(heard.map { it.first }, targets, freeSkips, confidence, profile)
-            if (a != null && (best == null || a.score > best.alignment.score)) best = HeardMatch(a, windowStart, confidence)
+            if (a != null && (best == null || a.score > best.alignment.score)) best = HeardMatch(a, windowStart, confidence, heard.map { it.first })
         }
         return best
     }
@@ -357,10 +362,11 @@ class PracticeController(
         // matched word. Words the recognizer tends to drop ("the", "of", or ones calibration found it
         // rarely hears in this voice) count as spoken; others as missed.
         if (final) {
+            val probablySaid = probablySaid(match, start)
             for (i in start until lastMatched) {
                 val (w, key) = parts[i]
                 if (!isConcealed(w) || w in spokenWords) continue
-                val generous = Aligner.isEasySkip(key, profile)
+                val generous = Aligner.isEasySkip(key, profile) || i in probablySaid
                 if (revealWord(w, if (generous) RevealKind.Spoken else RevealKind.Missed)) {
                     if (generous) spoken++ else {
                         missed++
@@ -372,6 +378,31 @@ class PracticeController(
 
         cursor = maxOf(cursor, lastMatched + 1)
         revealUnspeakableBefore(cursor)
+    }
+
+    /**
+     * Skipped parts the reciter most likely said anyway: the first few words of an utterance when
+     * nothing was heard before the first match (the recognizer loses them while it restarts), and
+     * a word or two heard as something that sounds like them.
+     */
+    private fun probablySaid(match: HeardMatch, start: Int): Set<Int> {
+        val result = HashSet<Int>()
+        val matches = match.alignment.matches.map { (spoken, target) -> spoken to match.partIndex(target) }
+        val (firstSpoken, firstPart) = matches.first()
+        if (firstSpoken == 0 && firstPart - start in 1..LOST_AT_START) result += start until firstPart
+
+        for (k in 1 until matches.size) {
+            val (s1, p1) = matches[k - 1]
+            val (s2, p2) = matches[k]
+            val run = p2 - p1 - 1
+            val between = match.heardKeys.subList(s1 + 1, s2)
+            if (run in 1..MISHEARD_RUN && between.isNotEmpty() && between.size <= run + 1 &&
+                between.all { h -> (p1 + 1 until p2).any { Aligner.similarity(h, parts[it].second) > SOUNDS_LIKE } }
+            ) {
+                result += p1 + 1 until p2
+            }
+        }
+        return result
     }
 
     /** Strict mode: what was heard didn't fit the passage, so the word expected next was said wrong. */
@@ -499,5 +530,12 @@ class PracticeController(
 
         /** How many words beyond what was actually spoken the alignment may reach (skipped words). */
         const val MAX_SKIP_AHEAD = 2
+
+        /** Words at the start of an utterance assumed said when the recognizer missed them. */
+        const val LOST_AT_START = 3
+
+        /** Words assumed said when something that sounds like them was heard. */
+        const val MISHEARD_RUN = 2
+        const val SOUNDS_LIKE = 0.5
     }
 }

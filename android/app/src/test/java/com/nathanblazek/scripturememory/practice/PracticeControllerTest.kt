@@ -67,6 +67,17 @@ class PracticeControllerTest {
     }
 
     @Test
+    fun wordsLostAsTheRecognizerRestartsAreForgiven() {
+        val c = controller("For God greatly loved the world")
+        c.setMode(PracticeMode.Blur)
+        c.startSpeech()
+        c.onHeard(heard("for god"), final = true)
+        // "greatly" was said while the recognizer was starting the next utterance.
+        c.onHeard(heard("loved the world"), final = true)
+        assertEquals(RevealKind.Spoken, c.state.reveal[2])
+    }
+
+    @Test
     fun peekAndReset() {
         val c = controller("For God so loved")
         c.setMode(PracticeMode.FirstLetter)
