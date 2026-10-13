@@ -18,6 +18,8 @@ Open a collection and tap **Interact**. The coach starts with the first passage 
 
 While you recite, a soft high chime means the verse you just finished was right. A soft low blip means a word was just missed, a word or two after it happened. Start that verse over on your own and the coach carries on from there without stopping you. If you keep going instead, it stops you and corrects the verse as above. Either way, a slip means that recitation doesn't count toward the two perfect ones.
 
+If you go quiet mid-passage for a few seconds, the coach says the next couple of words and keeps listening. A prompt (or *verse hint*) also means that recitation doesn't count toward the two perfect ones. The gear at the top of the screen sets how long a pause it waits for (or never), turns the blip and the chime on or off, and sets their volume.
+
 Say "verse" and then a command at any time:
 
 | Say | What happens |

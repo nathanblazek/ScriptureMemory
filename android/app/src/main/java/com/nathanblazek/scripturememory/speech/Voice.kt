@@ -22,7 +22,8 @@ class Voice(context: Context) {
     private val callbacks = mutableMapOf<String, () -> Unit>()
     private var nextId = 0
     private var tone: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
-    private var softTone: ToneGenerator? = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 35) }.getOrNull()
+    private var softTone: ToneGenerator? = null
+    private var softVolume = -1
     private val tts: TextToSpeech
 
     init {
@@ -95,14 +96,24 @@ class Voice(context: Context) {
         tone?.startTone(ToneGenerator.TONE_PROP_NACK, 250)
     }
 
-    /** A quiet, low blip that doesn't drown out the reciter: a word was missed. */
-    fun softBlip() {
-        softTone?.startTone(ToneGenerator.TONE_PROP_NACK, 120)
+    /** A quiet, low blip that doesn't drown out the reciter: a word was missed. [volume] is 0..100. */
+    fun softBlip(volume: Int) {
+        softTone(volume)?.startTone(ToneGenerator.TONE_PROP_NACK, 120)
     }
 
-    /** A quiet, high chime: a verse was right. */
-    fun softChime() {
-        softTone?.startTone(ToneGenerator.TONE_PROP_ACK, 100)
+    /** A quiet, high chime: a verse was right. [volume] is 0..100. */
+    fun softChime(volume: Int) {
+        softTone(volume)?.startTone(ToneGenerator.TONE_PROP_ACK, 100)
+    }
+
+    private fun softTone(volume: Int): ToneGenerator? {
+        if (volume <= 0) return null
+        if (volume != softVolume) {
+            softTone?.release()
+            softTone = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, volume) }.getOrNull()
+            softVolume = volume
+        }
+        return softTone
     }
 
     fun shutdown() {

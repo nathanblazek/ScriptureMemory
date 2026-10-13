@@ -126,6 +126,9 @@ class Coach(
     /** In the utterance under way, how many words had been heard when the blip came; a restart comes after. */
     private var restartAfter = 0
 
+    /** The reciter was prompted or given a hint in this attempt, so it isn't a perfect one. */
+    private var helped = false
+
     /** Where to go back to when a command interrupts (help, speak, hint). */
     private var resumePhase = CoachPhase.Reciting
 
@@ -252,6 +255,7 @@ class Coach(
         chimed.clear()
         restartVerse = null
         restartAfter = 0
+        helped = false
     }
 
     /** Stops the reciter at a verse they got wrong, reads it to them, and has them go again from there. */
@@ -291,12 +295,12 @@ class Coach(
             return
         }
         if (recitation.learnFromSuccess()) io.profileChanged()
-        if (blipped.isNotEmpty()) {
-            // A slip fixed along the way: good, but not a perfect recitation.
+        if (blipped.isNotEmpty() || helped) {
+            // A slip fixed along the way, or a prompt: good, but not a perfect recitation.
             streak = 0
             corrected = true
         }
-        io.log(if (blipped.isEmpty()) "perfect ${passage.reference}" else "fixed along the way ${passage.reference}")
+        io.log(if (blipped.isEmpty() && !helped) "perfect ${passage.reference}" else "fixed along the way ${passage.reference}")
         segmentDone("Perfect.")
     }
 
@@ -450,6 +454,14 @@ class Coach(
         }
     }
 
+    /** The reciter has gone quiet mid-recitation: quietly says the next couple of words. */
+    fun onSilence() {
+        if (phase != CoachPhase.Reciting) return
+        helped = true
+        io.log("prompted")
+        say(recitation.hint(PROMPT_WORDS)) { resume() }
+    }
+
     fun onFailed(message: String) {
         io.stopListening()
         phase = CoachPhase.Failed
@@ -505,7 +517,10 @@ class Coach(
             }
 
             VoiceCommand.Hint -> when (phase) {
-                CoachPhase.Reciting -> say(recitation.hint()) { resume() }
+                CoachPhase.Reciting -> {
+                    helped = true
+                    say(recitation.hint()) { resume() }
+                }
                 else -> say(recitation.text(0, 3).trimEnd(',', ';', ':', '.')) { beginAttempt() }
             }
 
@@ -549,6 +564,9 @@ class Coach(
     private companion object {
         /** Words that must be heard past a mistake before it's blipped. */
         const val BLIP_AFTER = 2
+
+        /** Words said to a reciter who has gone quiet. */
+        const val PROMPT_WORDS = 2
 
         /** A verse is chimed only if it's noticed within this many words of its end. */
         const val CHIME_WITHIN = 3

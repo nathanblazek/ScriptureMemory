@@ -77,6 +77,36 @@ class CoachTest {
     }
 
     @Test
+    fun goingQuietPromptsTheNextWords() {
+        val io = FakeIO()
+        val coach = Coach(listOf(thess), null, io)
+        coach.start()
+        coach.hear("rejoice always")
+        coach.onSilence()
+        assertEquals("pray without", io.said.last())
+        assertEquals(CoachPhase.Reciting, coach.state.phase)
+        assertTrue(io.listening)
+
+        // Prompted, so finishing is good but not perfect.
+        coach.hear("pray without ceasing give thanks in all circumstances")
+        assertEquals("Good. Now say all of 1 Thessalonians 5:16–18 from the start.", io.said.last())
+        assertEquals(0, coach.state.streak)
+    }
+
+    @Test
+    fun silenceOutsideARecitationDoesNothing() {
+        val io = FakeIO()
+        val coach = Coach(listOf(first), null, io)
+        coach.start()
+        coach.hear("jesus wept")
+        coach.hear("jesus wept")
+        val said = io.said.size
+        coach.command(VoiceCommand.Stop)
+        coach.onSilence()
+        assertEquals(said + 1, io.said.size)
+    }
+
+    @Test
     fun eachVerseRightChimes() {
         val io = FakeIO()
         val coach = Coach(listOf(thess), null, io)

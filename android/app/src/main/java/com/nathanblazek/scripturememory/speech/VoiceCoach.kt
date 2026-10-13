@@ -1,6 +1,8 @@
 package com.nathanblazek.scripturememory.speech
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.nathanblazek.scripturememory.data.AppDataHolder
 import com.nathanblazek.scripturememory.model.Passage
 import com.nathanblazek.scripturememory.practice.Coach
@@ -24,6 +26,9 @@ class VoiceCoach(
     private val holder = AppDataHolder.get(context)
     private val voice = Voice(context)
     private var engine: SpeechEngine? = null
+    private val settings = CoachSettings(context)
+    private val handler = Handler(Looper.getMainLooper())
+    private val silence = Runnable { coach.onSilence() }
 
     val coach = Coach(passages, holder.data.voiceProfile, this)
 
@@ -33,6 +38,7 @@ class VoiceCoach(
     }
 
     fun shutdown() {
+        handler.removeCallbacks(silence)
         coach.shutdown()
         voice.shutdown()
     }
@@ -45,13 +51,19 @@ class VoiceCoach(
         stopListening()
         if (words.isEmpty()) return
         val events = object : SpeechEvents {
-            override fun onHeard(candidates: List<List<HeardWord>>, final: Boolean) = coach.onHeard(candidates, final)
-            override fun onAudioLevel(level: Int) {}
+            override fun onHeard(candidates: List<List<HeardWord>>, final: Boolean) {
+                waitForSilence()
+                coach.onHeard(candidates, final)
+            }
+            override fun onAudioLevel(level: Int) {
+                if (level >= SPEAKING_LEVEL) waitForSilence() // talking, even if no words have come through yet
+            }
             override fun onFailed(message: String) {
                 engine = null
                 coach.onFailed(message)
             }
         }
+        waitForSilence()
         try {
             engine = AndroidSpeechEngine(context, words, position, events, audioSource(), VoiceCommands.phrases).also { it.start() }
         } catch (e: Exception) {
@@ -64,7 +76,15 @@ class VoiceCoach(
         engine?.setExpectedPosition(position)
     }
 
+    /** (Re)starts the wait for the reciter going quiet. */
+    private fun waitForSilence() {
+        handler.removeCallbacks(silence)
+        val seconds = settings.promptAfterSeconds
+        if (seconds > 0) handler.postDelayed(silence, seconds * 1000L)
+    }
+
     override fun stopListening() {
+        handler.removeCallbacks(silence)
         val e = engine ?: return
         engine = null
         e.shutdown()
@@ -78,13 +98,28 @@ class VoiceCoach(
         runCatching { holder.save() }
     }
 
-    override fun blip() = voice.softBlip()
+    override fun blip() {
+        if (settings.blips) voice.softBlip(settings.soundVolume)
+    }
 
-    override fun chime() = voice.softChime()
+    override fun chime() {
+        if (settings.chimes) voice.softChime(settings.soundVolume)
+    }
+
+    /** Plays the blip and the chime at [volume], to try a setting. */
+    fun sample(volume: Int) {
+        voice.softBlip(volume)
+        handler.postDelayed({ voice.softChime(volume) }, 400)
+    }
 
     override fun log(line: String) = ListeningLog.append(context, line)
 
     override fun practiced(passage: Passage) {
         runCatching { holder.recordPractice(collectionId, passage.id) }
+    }
+
+    private companion object {
+        /** Audio level (0..100) that means the reciter is talking. */
+        const val SPEAKING_LEVEL = 45
     }
 }
