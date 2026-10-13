@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Pages peeking out right and bottom -->
+    <path
+        android:fillColor="#EEE2C4"
+        android:pathData="M41,31h33a4,4 0,0 1,4 4v42a4,4 0,0 1,-4 4h-33z" />
+    <!-- Cover -->
+    <path
+        android:fillColor="#7A1E24"
+        android:pathData="M34,27h36a4,4 0,0 1,4 4v42a4,4 0,0 1,-4 4h-36a4,4 0,0 1,-4 -4v-42a4,4 0,0 1,4 -4z" />
+    <!-- Spine -->
+    <path
+        android:fillColor="#34080E"
+        android:pathData="M34,27h5v50h-5a4,4 0,0 1,-4 -4v-42a4,4 0,0 1,4 -4z" />
+    <!-- Gold border -->
+    <path
+        android:strokeColor="#E8C062"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M45,31h23a2,2 0,0 1,2 2v38a2,2 0,0 1,-2 2h-23a2,2 0,0 1,-2 -2v-38a2,2 0,0 1,2 -2z" />
+    <!-- Gold cross -->
+    <path
+        android:fillColor="#E8C062"
+        android:pathData="M54.5,37h4v30h-4z M47.5,45h18v4h-18z" />
+</vector>

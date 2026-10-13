@@ -1,0 +1,44 @@
+name: Android Auto sample (diagnostic)
+
+# Builds Google's unmodified Car App Library "showcase" sample so it can be
+# sideloaded next to Scripture Memory. If the sample also doesn't appear in
+# Android Auto's launcher, the problem is the phone's Android Auto setup.
+
+on:
+  push:
+    paths: [".github/workflows/car-sample.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # to publish the APK as a release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out android/car-samples
+        uses: actions/checkout@v4
+        with:
+          repository: android/car-samples
+          ref: 9be0b199986770cd5cde7765765c0eaef0758d15
+          path: car-samples
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+      - name: Build showcase sample
+        working-directory: car-samples/car_app_library
+        run: gradle --no-daemon :showcase:mobile:assembleDebug
+      # https://github.com/nathanblazek/ScriptureMemory/releases/download/android-auto-sample/AndroidAutoSample.apk
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp car-samples/car_app_library/showcase/mobile/build/outputs/apk/debug/mobile-debug.apk AndroidAutoSample.apk
+          gh release delete android-auto-sample --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create android-auto-sample AndroidAutoSample.apk --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+            --title "Android Auto sample (diagnostic)" \
+            --notes "Google's unmodified Car App Library showcase sample, for checking whether Android Auto shows sideloaded car apps on this phone."
