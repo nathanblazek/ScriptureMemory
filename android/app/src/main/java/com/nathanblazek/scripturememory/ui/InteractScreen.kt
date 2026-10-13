@@ -55,6 +55,7 @@ import com.nathanblazek.scripturememory.practice.CoachPhase
 import com.nathanblazek.scripturememory.practice.VoiceCommand
 import com.nathanblazek.scripturememory.speech.CoachSettings
 import com.nathanblazek.scripturememory.speech.ListeningLog
+import com.nathanblazek.scripturememory.speech.OfflineModel
 import com.nathanblazek.scripturememory.speech.VoiceCoach
 
 /** Hands-free coaching through a whole collection, driven by voice ("verse yes", "verse speak", ...). */
@@ -199,13 +200,62 @@ private fun CoachSettingsDialog(session: VoiceCoach, onDismiss: () -> Unit) {
     var blips by remember { mutableStateOf(settings.blips) }
     var chimes by remember { mutableStateOf(settings.chimes) }
     var volume by remember { mutableStateOf(settings.soundVolume.toFloat()) }
+    var offline by remember { mutableStateOf(settings.offline) }
+    var model by remember { mutableStateOf(OfflineModel.state(context)) }
+    DisposableEffect(Unit) {
+        val stop = OfflineModel.watch { model = it }
+        onDispose { stop() }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
         title = { Text("Coach settings") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Speech recognizer", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !offline,
+                        onClick = {
+                            offline = false
+                            settings.offline = false
+                        },
+                        label = { Text("Google") },
+                    )
+                    FilterChip(
+                        selected = offline,
+                        onClick = {
+                            offline = true
+                            settings.offline = true
+                        },
+                        label = { Text("Offline, passage only") },
+                    )
+                }
+                if (offline) {
+                    Text(
+                        "Listens only for the passage's words, on the phone, without gaps between phrases. " +
+                            "Anything else is heard as a wrong word.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    when (val m = model) {
+                        OfflineModel.State.Missing ->
+                            Button(onClick = { OfflineModel.download(context) }) { Text("Download (${OfflineModel.SIZE_MB} MB)") }
+                        is OfflineModel.State.Downloading -> Text("Downloading… ${m.percent}%")
+                        is OfflineModel.State.Failed -> {
+                            Text(m.message, color = MaterialTheme.colorScheme.error)
+                            Button(onClick = { OfflineModel.download(context) }) { Text("Try again") }
+                        }
+                        OfflineModel.State.Ready -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Downloaded. Used from the next time it listens.", Modifier.weight(1f))
+                            TextButton(onClick = { OfflineModel.delete(context) }) { Text("Delete") }
+                        }
+                    }
+                    if (model != OfflineModel.State.Ready) {
+                        Text("Until it's downloaded, Google's recognizer is used.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
                 Text("When I pause, prompt the next words", style = MaterialTheme.typography.titleSmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((seconds, label) in listOf(0 to "Never", 3 to "3 s", 4 to "4 s", 6 to "6 s", 8 to "8 s")) {

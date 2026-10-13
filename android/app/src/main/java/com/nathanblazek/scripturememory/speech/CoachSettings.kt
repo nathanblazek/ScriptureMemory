@@ -26,7 +26,13 @@ class CoachSettings(context: Context) {
         get() = prefs.getInt(SOUND_VOLUME, 35)
         set(v) = prefs.edit().putInt(SOUND_VOLUME, v.coerceIn(0, 100)).apply()
 
+    /** Hear the reciter with the offline model (once downloaded) instead of Google's recognizer. */
+    var offline: Boolean
+        get() = prefs.getBoolean(OFFLINE, false)
+        set(v) = prefs.edit().putBoolean(OFFLINE, v).apply()
+
     private companion object {
+        const val OFFLINE = "coachOfflineRecognizer"
         const val PROMPT_AFTER = "coachPromptAfter"
         const val BLIPS = "coachBlips"
         const val CHIMES = "coachChimes"

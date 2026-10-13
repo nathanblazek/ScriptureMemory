@@ -31,6 +31,9 @@ interface CoachIO {
     /** The voice profile learned something and should be saved. */
     fun profileChanged()
 
+    /** The recognizer listens without breaks between utterances, so it doesn't lose words there. */
+    val continuousListening: Boolean get() = false
+
     /** A subtle sound while the reciter keeps going: a word was just left out or said wrong. */
     fun blip() {}
 
@@ -152,12 +155,12 @@ class Coach(
 
     private val passage get() = passages[index]
 
-    private fun recitationFor(i: Int) = Recitation(passages.getOrNull(i)?.text.orEmpty(), profile)
+    private fun recitationFor(i: Int) = Recitation(passages.getOrNull(i)?.text.orEmpty(), profile, io.continuousListening)
 
     /** The current passage from verse [from] on. */
     private fun recitationFrom(from: Int): Recitation =
         if (from == 0 || from >= verses.size) recitationFor(index)
-        else Recitation(verses.drop(from).mapIndexed { i, v -> "[${i + 1}] ${v.text}" }.joinToString(" "), profile)
+        else Recitation(verses.drop(from).mapIndexed { i, v -> "[${i + 1}] ${v.text}" }.joinToString(" "), profile, io.continuousListening)
 
     private fun emit() = onChanged(state)
 

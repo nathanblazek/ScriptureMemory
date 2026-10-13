@@ -47,6 +47,9 @@ class VoiceCoach(
 
     override fun stopSaying() = voice.stopSpeaking()
 
+    override val continuousListening: Boolean
+        get() = settings.offline && OfflineModel.state(context) == OfflineModel.State.Ready
+
     override fun listen(words: List<String>, position: Int) {
         stopListening()
         if (words.isEmpty()) return
@@ -65,7 +68,10 @@ class VoiceCoach(
         }
         waitForSilence()
         try {
-            engine = AndroidSpeechEngine(context, words, position, events, audioSource(), VoiceCommands.phrases).also { it.start() }
+            engine = (
+                if (continuousListening) OfflineSpeechEngine(context, words, events, audioSource(), VoiceCommands.phrases)
+                else AndroidSpeechEngine(context, words, position, events, audioSource(), VoiceCommands.phrases)
+            ).also { it.start() }
         } catch (e: Exception) {
             engine = null
             coach.onFailed(e.message ?: "Speech recognition isn't available.")

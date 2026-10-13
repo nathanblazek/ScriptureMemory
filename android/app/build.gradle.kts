@@ -13,8 +13,8 @@ android {
         applicationId = "com.nathanblazek.scripturememory"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.8"
+        versionCode = 13
+        versionName = "1.9"
     }
 
     // One fixed debug key, so every build from CI (whose runners would otherwise each make their own)
@@ -63,6 +63,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("androidx.car.app:app:1.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // Offline, passage-only speech recognition (the model is downloaded on request).
+    implementation("com.alphacephei:vosk-android:0.3.47")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
 
     testImplementation("junit:junit:4.13.2")
 }

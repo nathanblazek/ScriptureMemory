@@ -32,7 +32,7 @@ class SimulatedRecognizerTest {
     /** The coach's verdicts for one recitation. */
     private class Outcome(val corrected: Boolean, val perfect: Boolean, val blips: Int, val said: List<String>)
 
-    private class FakeIO : CoachIO {
+    private class FakeIO(override val continuousListening: Boolean = false) : CoachIO {
         val said = mutableListOf<String>()
         var blips = 0
         override fun blip() { blips++ }
@@ -53,7 +53,8 @@ class SimulatedRecognizerTest {
         Tokenizer.tokenize(p.text).filter { it.isSpeakable }.flatMap { it.speechParts }.map { it.lowercase() }
 
     /** What the recognizer makes of [spoken], one utterance at a time: best guess first. */
-    private fun recognize(spoken: List<String>, rng: Random, together: Int? = null): List<List<List<HeardWord>>> {
+    private fun recognize(spoken: List<String>, rng: Random, together: Int? = null, offline: Boolean = false): List<List<List<HeardWord>>> {
+        if (offline) return recognizeOffline(spoken, rng)
         val utterances = mutableListOf<List<List<HeardWord>>>()
         var i = 0
         var first = true
@@ -82,12 +83,33 @@ class SimulatedRecognizerTest {
         return utterances
     }
 
-    private fun recite(passage: Passage, spoken: List<String>, rng: Random, together: Int? = null): Outcome {
-        val io = FakeIO()
+    /**
+     * The offline model: it listens continuously (nothing lost between phrases) and knows only the
+     * passage's words, so it makes no sound-alike mistakes but now and then hears noise as "[unk]"
+     * or loses a small word.
+     */
+    private fun recognizeOffline(spoken: List<String>, rng: Random): List<List<List<HeardWord>>> {
+        val utterances = mutableListOf<List<List<HeardWord>>>()
+        var i = 0
+        while (i < spoken.size) {
+            val n = minOf(spoken.size - i, rng.nextInt(3, 9))
+            val noisy = mutableListOf<String>()
+            for (w in spoken.subList(i, i + n)) {
+                if (rng.nextDouble() < 0.05) noisy += "[unk]"
+                if (!(Aligner.isFunctionWord(w) && rng.nextDouble() < 0.1)) noisy += w
+            }
+            i += n
+            utterances += listOf(noisy.map { HeardWord(it, 0.8f) })
+        }
+        return utterances
+    }
+
+    private fun recite(passage: Passage, spoken: List<String>, rng: Random, together: Int? = null, offline: Boolean = false): Outcome {
+        val io = FakeIO(continuousListening = offline)
         val coach = Coach(listOf(passage), null, io)
         coach.start()
         val before = io.said.size
-        for (u in recognize(spoken, rng, together)) {
+        for (u in recognize(spoken, rng, together, offline)) {
             // Partial results as the words come in, then the final one.
             val top = u.first()
             for (n in 1 until top.size) coach.onHeard(listOf(top.take(n)), final = false)
@@ -164,6 +186,32 @@ class SimulatedRecognizerTest {
         }
         println("Verses started over after a blip, not accepted: ${failures.size} of $tried\n" + failures.joinToString("\n"))
         assert(failures.size * 10 <= tried) { "Too many verses started over not accepted:\n" + failures.joinToString("\n") }
+    }
+
+    @Test
+    fun offlineModelCorrectRecitationsAreAccepted() {
+        val failures = mutableListOf<String>()
+        for (p in passages) {
+            repeat(TRIALS) { seed ->
+                val o = recite(p, words(p), Random(seed), offline = true)
+                if (!o.perfect || o.blips > 0) failures += "${p.reference} seed $seed: ${o.blips} blips, ${o.said}"
+            }
+        }
+        assertEquals("Correct recitations not accepted:\n" + failures.take(10).joinToString("\n"), 0, failures.size)
+    }
+
+    @Test
+    fun offlineModelCatchesALeftOutWord() {
+        val failures = mutableListOf<String>()
+        for (p in passages) {
+            val all = words(p)
+            for ((n, skip) in all.indices.filter { it in 2 until all.size - 2 && !Aligner.isFunctionWord(all[it]) }.withIndex()) {
+                val o = recite(p, all.filterIndexed { i, _ -> i != skip }, Random(n), offline = true)
+                if (!o.corrected) failures += "${p.reference} without “${all[skip]}”: ${o.said}"
+            }
+        }
+        println("Offline: left-out words not caught: ${failures.size}\n" + failures.joinToString("\n"))
+        assert(failures.size <= MAX_UNCAUGHT) { "Too many left-out words not caught:\n" + failures.joinToString("\n") }
     }
 
     @Test

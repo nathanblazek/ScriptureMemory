@@ -29,7 +29,12 @@ data class Grade(
  * left out, and words said in the wrong place. Unlike [PracticeController], which reveals words as
  * they're said, this keeps everything heard so a word said out of order can be recognized as such.
  */
-class Recitation(passageText: String, private val profile: VoiceProfile?) {
+class Recitation(
+    passageText: String,
+    private val profile: VoiceProfile?,
+    /** Heard by a recognizer that listens without breaks, so nothing is lost between utterances. */
+    private val continuous: Boolean = false,
+) {
     private val tokens = Tokenizer.tokenize(passageText)
     private val words: List<WordToken> = tokens.filter { it.kind == TokenKind.Word }
 
@@ -289,7 +294,7 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
 
             // Within one stretch of speech the recognizer rarely drops a whole word, so a gap there
             // is a real miss; between utterances (or at the very start) it often loses a few.
-            val lostBetweenUtterances = between.isEmpty() && (acrossUtterances || atStart) && run <= MAX_LOST_RUN
+            val lostBetweenUtterances = between.isEmpty() && ((acrossUtterances && !continuous) || atStart) && run <= MAX_LOST_RUN
 
             val runKeys = parts.subList(before + 1, after).map { it.second }
             val misheard = between.isNotEmpty() && run <= MAX_MISHEARD_RUN && between.size <= run + 1 &&
