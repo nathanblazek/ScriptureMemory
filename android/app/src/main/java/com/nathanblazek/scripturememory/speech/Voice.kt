@@ -15,9 +15,7 @@ import java.util.Locale
 class Voice(context: Context) {
     private val handler = Handler(Looper.getMainLooper())
     private val audio = context.getSystemService(AudioManager::class.java)
-    private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-        .setAudioAttributes(ATTRIBUTES)
-        .build()
+    private var focus: AudioFocusRequest? = null
     private var initialized = false
     private var ready = false
     private var pending: (() -> Unit)? = null
@@ -50,13 +48,23 @@ class Voice(context: Context) {
         pending = null
     }
 
-    /** Pauses other audio (music, podcasts) while practicing. */
+    /**
+     * Holds audio focus while practicing. Music that is playing is paused and picks up again
+     * afterwards. Music that is already paused is told it lost focus for good, so neither the
+     * recognizer's own focus requests nor the end of the session can start it playing again.
+     */
     fun takeFocus() {
-        runCatching { audio.requestAudioFocus(focus) }
+        if (focus != null) return
+        val gain = if (audio.isMusicActive) AudioManager.AUDIOFOCUS_GAIN_TRANSIENT else AudioManager.AUDIOFOCUS_GAIN
+        val request = AudioFocusRequest.Builder(gain).setAudioAttributes(ATTRIBUTES).build()
+        val granted = runCatching { audio.requestAudioFocus(request) }.getOrNull() == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (granted) focus = request
     }
 
     fun releaseFocus() {
-        runCatching { audio.abandonAudioFocusRequest(focus) }
+        val request = focus ?: return
+        focus = null
+        runCatching { audio.abandonAudioFocusRequest(request) }
     }
 
     /** Speaks [text], then calls [onDone] (right away if speech isn't available). */
