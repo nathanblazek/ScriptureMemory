@@ -31,6 +31,26 @@ object Aligner {
 
     fun isFunctionWord(key: String): Boolean = key in functionWords
 
+    /** Words that sound the same, which the recognizer may write either way. */
+    private val homophones: Map<String, Int> = listOf(
+        "no know", "one won", "to too two", "for four fore", "son sun", "him hymn", "whole hole",
+        "there their theyre", "be bee", "by buy bye", "right write rite", "might mite", "praise prays preys",
+        "see sea", "hear here", "knew new", "our hour", "so sew sow", "through threw", "wait weight",
+        "way weigh", "would wood", "which witch", "peace piece", "reign rain rein", "sent scent cent",
+        "seen scene", "soul sole", "heal heel", "holy wholly", "mourning morning", "prophet profit",
+        "altar alter", "made maid", "night knight", "not knot", "I eye aye", "its its", "lead led",
+        "seas sees seize", "great grate", "male mail", "flee flea", "vain vein vane", "wholly holy",
+        "bread bred", "die dye", "flour flower", "hallowed hollowed", "lo low", "rose rows", "sow sew so",
+        "weak week", "wear where", "whose whos", "yoke yolk", "ye yee",
+        // Not homophones, but said quickly the recognizer writes one for the other.
+        "in and an",
+    ).flatMapIndexed { group, line -> line.lowercase().split(' ').map { it to group } }.toMap()
+
+    private fun soundTheSame(a: String, b: String): Boolean {
+        val g = homophones[a] ?: return false
+        return homophones[b] == g
+    }
+
     /** Words it's fine for the recognizer to drop: small function words, and words calibration found it rarely hears. */
     fun isEasySkip(key: String, profile: VoiceProfile?): Boolean =
         isFunctionWord(key) || (profile?.isHardToHear(key) ?: false)
@@ -119,6 +139,7 @@ object Aligner {
     fun similarity(a: String, b: String): Double {
         if (a == b) return 1.0
         if (a.isEmpty() || b.isEmpty()) return 0.0
+        if (soundTheSame(a, b)) return 0.95
 
         val longer = max(a.length, b.length)
         var score = 1.0 - levenshtein(a, b).toDouble() / longer

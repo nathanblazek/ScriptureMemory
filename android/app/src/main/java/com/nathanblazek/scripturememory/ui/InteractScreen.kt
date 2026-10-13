@@ -1,6 +1,7 @@
 package com.nathanblazek.scripturememory.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +47,7 @@ import com.nathanblazek.scripturememory.model.VerseCollection
 import com.nathanblazek.scripturememory.practice.CoachMode
 import com.nathanblazek.scripturememory.practice.CoachPhase
 import com.nathanblazek.scripturememory.practice.VoiceCommand
+import com.nathanblazek.scripturememory.speech.ListeningLog
 import com.nathanblazek.scripturememory.speech.VoiceCoach
 
 /** Hands-free coaching through a whole collection, driven by voice ("verse yes", "verse speak", ...). */
@@ -161,6 +163,15 @@ fun InteractScreen(vm: AppViewModel, collection: VerseCollection) {
 
             TextButton(onClick = { showText = !showText }) { Text(if (showText) "Hide the passage" else "Show the passage") }
             if (showText) Text(state.passageText, style = MaterialTheme.typography.bodyLarge)
+
+            // So a session where it misheard can be sent off and turned into a test.
+            TextButton(onClick = {
+                val send = Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, "Scripture Memory listening log")
+                    .putExtra(Intent.EXTRA_TEXT, ListeningLog.read(context).ifEmpty { "Nothing heard yet." })
+                context.startActivity(Intent.createChooser(send, "Share listening log"))
+            }) { Text("Share listening log") }
         }
     }
 }

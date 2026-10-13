@@ -16,6 +16,8 @@ The Android version of Scripture Memory, written in Kotlin with Jetpack Compose.
 
 Open a collection and tap **Interact**. The coach starts with the first passage you haven't mastered: it reads the passage, then you recite it. As soon as you finish a verse with a mistake in it (a word left out, a different word, or words out of order), it stops you, reads that verse back, says "Try again", and listens again from that verse. Once you've got to the end, you say the whole passage once more from the start. Two perfect recitations in a row marks the passage mastered and moves on to the next.
 
+While you recite, a soft high chime means the verse you just finished was right. A soft low blip means a word was just missed, a word or two after it happened. Start that verse over on your own and the coach carries on from there without stopping you. If you keep going instead, it stops you and corrects the verse as above. Either way, a slip means that recitation doesn't count toward the two perfect ones.
+
 Say "verse" and then a command at any time:
 
 | Say | What happens |
@@ -31,6 +33,8 @@ Say "verse" and then a command at any time:
 | verse stop | End the session |
 
 Before calling a verse wrong, the coach rechecks everything it heard, including the recognizer's other guesses. It also learns your voice as you go: words it mishears in recitations that turn out right, and any verse you tell it was right with *verse correct*, are remembered (with your calibration data) so they're recognized next time.
+
+**Share listening log** at the bottom of the screen sends what the coach heard and decided, so a session where it got things wrong can be turned into a test. The log stays on the phone otherwise.
 
 The screen stays on while the coach runs, and the buttons do the same as the commands. The coach is also in Android Auto, as **Voice coach** at the top of a collection's passages.
 

@@ -341,7 +341,7 @@ class PracticeController(
         val targets = parts.subList(windowStart, windowEnd).map { it.second }
 
         var best: HeardMatch? = null
-        for (heardWords in candidates) {
+        for (heardWords in candidates.map(HeardText::normalize)) {
             val heard = heardWords.map { Tokenizer.key(it.text) to it.confidence }.filter { it.first.isNotEmpty() }
             val confidence = heard.map { it.second }
             val a = Aligner.align(heard.map { it.first }, targets, freeSkips, confidence, profile)

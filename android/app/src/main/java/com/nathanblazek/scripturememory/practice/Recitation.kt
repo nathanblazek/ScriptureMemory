@@ -89,7 +89,11 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
      * last partial result is kept as one more guess: it sometimes has words the final result dropped.
      */
     fun add(candidates: List<List<HeardWord>>, partial: List<HeardWord>? = null) {
-        val usable = (candidates + listOfNotNull(partial))
+        // A partial that's just the start of a final guess adds nothing, and would let a wrong last
+        // word be explained away as lost between utterances.
+        fun keys(c: List<HeardWord>) = c.map { Tokenizer.key(it.text) }.filter { it.isNotEmpty() }
+        val extra = partial?.takeUnless { p -> candidates.any { c -> keys(c).take(keys(p).size) == keys(p) } }
+        val usable = (candidates + listOfNotNull(extra))
             .map { c -> c.filter { Tokenizer.key(it.text).isNotEmpty() } }
             .filter { it.isNotEmpty() }
             .distinctBy { c -> c.joinToString(" ") { Tokenizer.key(it.text) } }
@@ -97,6 +101,23 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
         val best = usable.indices.maxBy { align(heard + usable[it])?.score ?: Double.NEGATIVE_INFINITY }
         utterances += Utterance(usable, best)
         rebuild()
+    }
+
+    /**
+     * How the recitation stands with the utterance still in progress ([partial]) included, without
+     * keeping it: the final result for that utterance replaces it.
+     */
+    fun gradeWith(partial: List<HeardWord>): Grade {
+        val usable = partial.filter { Tokenizer.key(it.text).isNotEmpty() }
+        if (usable.isEmpty()) return grade()
+        utterances += Utterance(listOf(usable), 0)
+        rebuild()
+        try {
+            return grade()
+        } finally {
+            utterances.removeAt(utterances.lastIndex)
+            rebuild()
+        }
     }
 
     /**
@@ -131,6 +152,47 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
             rebuild()
         }
         return mistakesIn(grade(), verse).isEmpty()
+    }
+
+    val verseCount: Int get() = verseStarts.size
+
+    /** The verse (0-based) that word [word] is in. */
+    fun verseOf(word: Int): Int = verseStarts.indexOfLast { it <= word }.coerceAtLeast(0)
+
+    /** The last word of verse [v]. */
+    fun verseEnd(v: Int): Int = verseRange(v).last
+
+    /** True if [v] has been recited to its last word with nothing wrong in it. */
+    fun verseRight(grade: Grade, v: Int): Boolean = grade.lastWord >= verseEnd(v) && mistakesIn(grade, v).isEmpty()
+
+    /**
+     * Where in [heard] the reciter starts verse [v] over: its first few words, said again, at or
+     * after [from]. Null if they don't.
+     */
+    fun restartIn(heard: List<HeardWord>, v: Int, from: Int = 0): Int? {
+        val first = verseRange(v).first
+        val opening = parts.filter { it.first >= first }.take(RESTART_WORDS).map { it.second }
+        if (opening.isEmpty()) return null
+        // One of the opening words may be lost, as long as two are heard (or all of a shorter opening).
+        val needed = minOf(opening.size, 2)
+        val at = heard.indices.filter { Tokenizer.key(heard[it].text).isNotEmpty() }
+        val keys = at.map { Tokenizer.key(heard[it].text) }
+        fun like(k: Int, w: String) = Aligner.similarity(keys[k], w) >= RESTART_SIMILARITY
+        for (i in keys.indices) {
+            if (at[i] < from) continue
+            // The opening's words in order from here, each right after the last one found.
+            val startWord = (0..1).firstOrNull { it < opening.size && like(i, opening[it]) } ?: continue
+            var k = i + 1
+            var matched = 1
+            for (w in opening.drop(startWord + 1)) {
+                if (k < keys.size && like(k, w)) {
+                    matched++
+                    k++
+                }
+            }
+            if (matched >= needed) return at[i]
+        }
+        return null
     }
 
     private fun verseRange(v: Int): IntRange = verseStarts[v] until (verseStarts.getOrNull(v + 1) ?: words.size)
@@ -213,11 +275,16 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
         for (p in gaps) {
             val before = matchedTargets.lastOrNull { it < p } ?: -1
             val after = matchedTargets.firstOrNull { it > p } ?: continue
-            val run = after - before - 1
+            // Words that had to be said: small words the reciter may drop don't count.
+            val run = (before + 1 until after).count { !Aligner.isEasySkip(parts[it].second, profile) }
             val spokenFrom = if (before >= 0) spokenAt.getValue(before) + 1 else 0
             val spokenTo = spokenAt.getValue(after) // exclusive
             val between = heard.subList(spokenFrom, spokenTo).map { Tokenizer.key(it.text) }
-            val acrossUtterances = utteranceStarts.any { it in spokenFrom..spokenTo }
+            // A repeated word ("together for good, for those") can line up with either copy; if it
+            // could be the copy before the gap, the gap really ends where the next utterance began.
+            val couldShift = (spokenTo + 1) in utteranceStarts &&
+                (before + 1 until after).any { Aligner.similarity(parts[it].second, parts[after].second) >= 0.95 }
+            val acrossUtterances = couldShift || utteranceStarts.any { it in spokenFrom..spokenTo }
             val atStart = before < 0
 
             // Within one stretch of speech the recognizer rarely drops a whole word, so a gap there
@@ -352,6 +419,10 @@ class Recitation(passageText: String, private val profile: VoiceProfile?) {
 
     private companion object {
         const val OUT_OF_ORDER_SIMILARITY = 0.8
+
+        /** Words of a verse's opening said again that count as starting it over. */
+        const val RESTART_WORDS = 3
+        const val RESTART_SIMILARITY = 0.8
 
         /** The longest stretch of words assumed said when nothing was heard between two utterances. */
         const val MAX_LOST_RUN = 3

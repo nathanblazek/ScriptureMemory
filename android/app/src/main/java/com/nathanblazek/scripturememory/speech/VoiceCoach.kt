@@ -78,6 +78,12 @@ class VoiceCoach(
         runCatching { holder.save() }
     }
 
+    override fun blip() = voice.softBlip()
+
+    override fun chime() = voice.softChime()
+
+    override fun log(line: String) = ListeningLog.append(context, line)
+
     override fun practiced(passage: Passage) {
         runCatching { holder.recordPractice(collectionId, passage.id) }
     }

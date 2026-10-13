@@ -15,6 +15,10 @@ class CoachTest {
         val said = mutableListOf<String>()
         var listening = false
         val mastered = mutableListOf<String>()
+        var blips = 0
+        var chimes = 0
+        override fun blip() { blips++ }
+        override fun chime() { chimes++ }
         override fun say(text: String, then: () -> Unit) {
             listening = false
             said += text
@@ -30,6 +34,62 @@ class CoachTest {
     }
 
     private fun Coach.hear(text: String) = onHeard(listOf(text.split(" ").map { HeardWord(it, 0.9f) }), final = true)
+    private fun Coach.hearSoFar(text: String) = onHeard(listOf(text.split(" ").map { HeardWord(it, 0.9f) }), final = false)
+
+    private val thess = Passage(
+        id = "t",
+        reference = "1 Thessalonians 5:16–18",
+        text = "[16] Rejoice always, [17] pray without ceasing, [18] give thanks in all circumstances;",
+    )
+
+    @Test
+    fun aMissedWordBlipsAndTheVerseCanBeStartedOver() {
+        val io = FakeIO()
+        val coach = Coach(listOf(thess), null, io)
+        coach.start()
+        val said = io.said.size
+
+        // "ceasing" is left out; the blip comes once a couple more words are heard.
+        coach.hearSoFar("rejoice always pray without")
+        assertEquals(0, io.blips)
+        coach.hearSoFar("rejoice always pray without give thanks")
+        assertEquals(1, io.blips)
+        coach.hearSoFar("rejoice always pray without give thanks in")
+        assertEquals(1, io.blips) // once per mistake
+
+        // Hearing it, the reciter starts verse 17 over and finishes without stopping.
+        coach.hear("rejoice always pray without give thanks pray without ceasing give thanks in all circumstances")
+        assertEquals(1, io.blips)
+        assertEquals("Good. Now say all of 1 Thessalonians 5:16–18 from the start.", io.said.last())
+        assertEquals(said + 1, io.said.size) // no spoken correction
+        assertEquals(0, coach.state.streak)
+    }
+
+    @Test
+    fun goingOnAfterABlipIsCorrected() {
+        val io = FakeIO()
+        val coach = Coach(listOf(thess), null, io)
+        coach.start()
+        coach.hearSoFar("rejoice always pray without give thanks")
+        assertEquals(1, io.blips)
+        coach.hear("rejoice always pray without give thanks in all")
+        assertEquals("That's not quite right. 1 Thessalonians 5:17. pray without ceasing. Try again.", io.said.last())
+    }
+
+    @Test
+    fun eachVerseRightChimes() {
+        val io = FakeIO()
+        val coach = Coach(listOf(thess), null, io)
+        coach.start()
+        coach.hear("rejoice always pray")
+        assertEquals(1, io.chimes)
+        coach.hearSoFar("without ceasing give")
+        assertEquals(2, io.chimes)
+        coach.hear("without ceasing give thanks in all circumstances")
+        assertEquals(2, io.chimes) // the last verse gets spoken praise instead
+        assertEquals(0, io.blips)
+        assertEquals("Perfect. Say it once more to lock it in.", io.said.last())
+    }
 
     @Test
     fun learnsEachPassageUntilMastered() {

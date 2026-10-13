@@ -30,6 +30,15 @@ interface CoachIO {
 
     /** The voice profile learned something and should be saved. */
     fun profileChanged()
+
+    /** A subtle sound while the reciter keeps going: a word was just left out or said wrong. */
+    fun blip() {}
+
+    /** A subtle, happier sound: a verse was just recited right. */
+    fun chime() {}
+
+    /** One line for the listening log: what was heard and what the coach made of it. */
+    fun log(line: String) {}
 }
 
 enum class CoachMode {
@@ -105,6 +114,18 @@ class Coach(
     private class Flagged(val recitation: Recitation, val verse: Int, val fromVerse: Int, val correctedBefore: Boolean)
     private var flagged: Flagged? = null
 
+    /** Mistakes already blipped in this attempt, by their first word. */
+    private val blipped = HashSet<Int>()
+
+    /** Verses of this attempt already chimed as right. */
+    private val chimed = HashSet<Int>()
+
+    /** The verse (of this attempt) that was blipped, which the reciter may start over on their own. */
+    private var restartVerse: Int? = null
+
+    /** In the utterance under way, how many words had been heard when the blip came; a restart comes after. */
+    private var restartAfter = 0
+
     /** Where to go back to when a command interrupts (help, speak, hint). */
     private var resumePhase = CoachPhase.Reciting
 
@@ -140,6 +161,7 @@ class Coach(
     // ---------- Starting and stopping ----------
 
     fun start() {
+        io.log("start ${passages.size} passages")
         if (passages.isEmpty()) {
             say("This collection has no passages yet.") { finish() }
             return
@@ -170,6 +192,7 @@ class Coach(
         fromVerse = 0
         corrected = false
         flagged = null
+        io.log("passage ${passage.reference}")
         recitation = recitationFor(i)
         lastFeedback = ""
         when (mode) {
@@ -216,10 +239,19 @@ class Coach(
 
     /** A fresh recitation of the current passage, from verse [from] on. */
     private fun beginAttempt(from: Int = fromVerse) {
+        startFrom(from)
+        listenFor(CoachPhase.Reciting)
+    }
+
+    /** A new recitation of the current passage from verse [from], with nothing heard yet. */
+    private fun startFrom(from: Int) {
         fromVerse = from
         lastPartial = null
         recitation = recitationFrom(from)
-        listenFor(CoachPhase.Reciting)
+        blipped.clear()
+        chimed.clear()
+        restartVerse = null
+        restartAfter = 0
     }
 
     /** Stops the reciter at a verse they got wrong, reads it to them, and has them go again from there. */
@@ -229,6 +261,7 @@ class Coach(
         streak = 0
         corrected = true
         val v = verses.getOrNull(verse)
+        io.log("corrected ${v?.label ?: passage.reference}")
         lastFeedback = if (v != null) "That's not quite right. ${v.label}. ${sentence(v.spoken)}"
         else "That's not quite right. ${passage.reference}. ${sentence(recitationFor(index).spokenText)}"
         say("$lastFeedback Try again.") { beginAttempt(if (v != null) verse else 0) }
@@ -258,6 +291,12 @@ class Coach(
             return
         }
         if (recitation.learnFromSuccess()) io.profileChanged()
+        if (blipped.isNotEmpty()) {
+            // A slip fixed along the way: good, but not a perfect recitation.
+            streak = 0
+            corrected = true
+        }
+        io.log(if (blipped.isEmpty()) "perfect ${passage.reference}" else "fixed along the way ${passage.reference}")
         segmentDone("Perfect.")
     }
 
@@ -322,17 +361,27 @@ class Coach(
     }
 
     /** Words from the recognizer: candidate word lists, best first. [final] ends the utterance. */
-    fun onHeard(candidates: List<List<HeardWord>>, final: Boolean) {
+    fun onHeard(heardCandidates: List<List<HeardWord>>, final: Boolean) {
         if (phase != CoachPhase.Reciting && phase != CoachPhase.Waiting && phase != CoachPhase.Finished) return
+        val candidates = heardCandidates.map(HeardText::normalize)
         heard = candidates.firstOrNull()?.joinToString(" ") { it.text }.orEmpty()
         if (!final) {
-            candidates.firstOrNull()?.takeIf { it.isNotEmpty() }?.let { lastPartial = it }
+            candidates.firstOrNull()?.takeIf { it.isNotEmpty() }?.let {
+                lastPartial = it
+                // While a blipped verse is being started over, the old attempt's grade means nothing.
+                val restarting = restartVerse?.let { v -> recitation.restartIn(it, v, restartAfter) } != null
+                if (phase == CoachPhase.Reciting && !restarting && VoiceCommands.find(listOf(it)) == null) {
+                    soundOff(recitation.gradeWith(it), it.size)
+                }
+            }
             emit()
             return
         }
         val partial = lastPartial
         lastPartial = null
 
+        io.log("heard " + candidates.joinToString("  |  ") { c -> c.joinToString(" ") { it.text } } +
+            (partial?.let { p -> "  (partial: ${p.joinToString(" ") { it.text }})" } ?: ""))
         val found = VoiceCommands.find(candidates)
         if (found != null) {
             if (phase == CoachPhase.Reciting && found.before.isNotEmpty()) recitation.add(listOf(found.before))
@@ -341,19 +390,64 @@ class Coach(
         }
 
         if (phase == CoachPhase.Reciting) {
-            recitation.add(candidates, partial)
-            io.setPosition(recitation.position())
+            val restart = restartVerse?.let { v -> restartIn(candidates, v) }
+            restartAfter = 0
+            if (restart != null) {
+                // The reciter heard the blip and started the verse over: carry on from there.
+                streak = 0
+                corrected = true
+                startFrom(fromVerse + restartVerse!!)
+                recitation.add(restart)
+                io.log("started over at ${verses.getOrNull(fromVerse)?.label ?: passage.reference}")
+                io.listen(recitation.speechWords, recitation.position())
+            } else {
+                recitation.add(candidates, partial)
+                io.setPosition(recitation.position())
+            }
             val wrong = wrongVerse()
             if (wrong != null) {
                 correct(fromVerse + wrong)
                 return
             }
-            if (recitation.grade().reachedEnd) {
+            val grade = recitation.grade()
+            if (grade.reachedEnd) {
                 finishAttempt()
                 return
             }
+            soundOff(grade, 0)
         }
         emit()
+    }
+
+    /** Each guess from where it starts verse [v] over (dropping guesses that don't), or null if none do. */
+    private fun restartIn(candidates: List<List<HeardWord>>, v: Int): List<List<HeardWord>>? {
+        val restarted = candidates.mapNotNull { c -> recitation.restartIn(c, v, restartAfter)?.let { c.drop(it) } }
+        return restarted.ifEmpty { null }
+    }
+
+    /**
+     * Sounds off while the reciter keeps going: a blip once for each new mistake they've gone well
+     * past (so they can start that verse over on their own), and a chime for each verse right.
+     * [heardSoFar] is how many words of the utterance under way are in [grade] (0 between utterances).
+     */
+    private fun soundOff(grade: Grade, heardSoFar: Int) {
+        // A word the recognizer is still settling on isn't called wrong: wait for BLIP_AFTER more.
+        val fresh = grade.mistakes.filter { it.last + BLIP_AFTER <= grade.lastWord && it.first !in blipped }
+        if (fresh.isNotEmpty()) {
+            fresh.forEach { blipped += it.first }
+            restartVerse = recitation.verseOf(fresh.minOf { it.first })
+            restartAfter = heardSoFar
+            io.log("blip at “${recitation.text(fresh.first().first, fresh.first().last)}”")
+            io.blip()
+            return
+        }
+        // The last verse gets spoken praise instead.
+        for (v in 0 until recitation.verseCount - 1) {
+            if (v in chimed || !recitation.verseRight(grade, v)) continue
+            // Only a verse just finished: one with a blip in it is corrected, not praised.
+            chimed += v
+            if (grade.lastWord <= recitation.verseEnd(v) + CHIME_WITHIN && blipped.none { recitation.verseOf(it) == v }) io.chime()
+        }
     }
 
     fun onFailed(message: String) {
@@ -431,6 +525,7 @@ class Coach(
             return
         }
         flagged = null
+        io.log("said it right")
         f.recitation.learnVerseWasRight(f.verse - f.fromVerse)
         io.profileChanged()
         corrected = f.correctedBefore
@@ -449,5 +544,13 @@ class Coach(
             emit()
             onStopped()
         }
+    }
+
+    private companion object {
+        /** Words that must be heard past a mistake before it's blipped. */
+        const val BLIP_AFTER = 2
+
+        /** A verse is chimed only if it's noticed within this many words of its end. */
+        const val CHIME_WITHIN = 3
     }
 }
