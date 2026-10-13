@@ -18,7 +18,7 @@ Open a collection and tap **Interact**. The coach starts with the first passage 
 
 While you recite, a soft high chime means the verse you just finished was right. A soft low blip means a word was just missed, a word or two after it happened. Start that verse over on your own and the coach carries on from there without stopping you. If you keep going instead, it stops you and corrects the verse as above. Either way, a slip means that recitation doesn't count toward the two perfect ones.
 
-If you go quiet mid-passage for a few seconds, the coach says the next couple of words and keeps listening. A prompt (or *verse hint*) also means that recitation doesn't count toward the two perfect ones. The gear at the top of the screen sets how long a pause it waits for (or never), turns the blip and the chime on or off, and sets their volume.
+If you go quiet mid-passage for a few seconds, the coach says the next couple of words and keeps listening. A prompt (or *verse hint*) also means that recitation doesn't count toward the two perfect ones. The gear at the top of the screen (or **Coach settings** in the ⋮ menu on the home screen) sets how long a pause it waits for (or never), turns the blip and the chime on or off, and sets their volume.
 
 The gear also picks the speech recognizer. **Google** is Android's own, which works out of the box. **Offline, passage only** downloads a small speech model (about 40 MB, once) and runs it on the phone. It only knows the words of the passage and the coach's commands, so it can't mistake one of your words for a sound-alike, and anything else you say counts as a wrong word. It also listens without the short breaks Google's recognizer takes between phrases, so it doesn't lose words there.
 

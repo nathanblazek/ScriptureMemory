@@ -113,10 +113,7 @@ class VoiceCoach(
     }
 
     /** Plays the blip and the chime at [volume], to try a setting. */
-    fun sample(volume: Int) {
-        voice.softBlip(volume)
-        handler.postDelayed({ voice.softChime(volume) }, 400)
-    }
+    fun sample(volume: Int) = voice.sampleSounds(volume)
 
     override fun log(line: String) = ListeningLog.append(context, line)
 

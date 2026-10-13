@@ -56,6 +56,7 @@ import com.nathanblazek.scripturememory.practice.VoiceCommand
 import com.nathanblazek.scripturememory.speech.CoachSettings
 import com.nathanblazek.scripturememory.speech.ListeningLog
 import com.nathanblazek.scripturememory.speech.OfflineModel
+import com.nathanblazek.scripturememory.speech.Voice
 import com.nathanblazek.scripturememory.speech.VoiceCoach
 
 /** Hands-free coaching through a whole collection, driven by voice ("verse yes", "verse speak", ...). */
@@ -173,7 +174,7 @@ fun InteractScreen(vm: AppViewModel, collection: VerseCollection) {
                 }
             }
 
-            if (showSettings) CoachSettingsDialog(session) { showSettings = false }
+            if (showSettings) CoachSettingsDialog(onSample = session::sample) { showSettings = false }
 
             TextButton(onClick = { showText = !showText }) { Text(if (showText) "Hide the passage" else "Show the passage") }
             if (showText) Text(state.passageText, style = MaterialTheme.typography.bodyLarge)
@@ -193,8 +194,12 @@ fun InteractScreen(vm: AppViewModel, collection: VerseCollection) {
 /** Prompting and sound settings for the coach; changes apply right away. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun CoachSettingsDialog(session: VoiceCoach, onDismiss: () -> Unit) {
+fun CoachSettingsDialog(onSample: ((Int) -> Unit)? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    // Outside a session, a voice of its own to play the sample sounds.
+    val ownVoice = remember { if (onSample == null) Voice(context) else null }
+    DisposableEffect(ownVoice) { onDispose { ownVoice?.shutdown() } }
+    val sample: (Int) -> Unit = onSample ?: { ownVoice?.sampleSounds(it) }
     val settings = remember { CoachSettings(context) }
     var promptAfter by remember { mutableStateOf(settings.promptAfterSeconds) }
     var blips by remember { mutableStateOf(settings.blips) }
@@ -283,7 +288,7 @@ private fun CoachSettingsDialog(session: VoiceCoach, onDismiss: () -> Unit) {
                     onValueChange = { volume = it },
                     onValueChangeFinished = {
                         settings.soundVolume = volume.toInt()
-                        session.sample(volume.toInt())
+                        sample(volume.toInt())
                     },
                     valueRange = 5f..100f,
                 )

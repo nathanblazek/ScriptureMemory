@@ -50,6 +50,7 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
     var menuOpen by remember { mutableStateOf(false) }
     var creating by remember { mutableStateOf(false) }
     var carCheck by remember { mutableStateOf<String?>(null) }
+    var coachSettings by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
 
@@ -67,6 +68,7 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
                 actions = {
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "More") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Coach settings") }, onClick = { menuOpen = false; coachSettings = true })
                         DropdownMenuItem(text = { Text("ESV API key") }, onClick = { menuOpen = false; onApiKey() })
                         DropdownMenuItem(
                             text = { Text("Import data…") },
@@ -130,6 +132,8 @@ fun CollectionsScreen(vm: AppViewModel, snackbar: SnackbarHostState, onApiKey: (
             }
         }
     }
+
+    if (coachSettings) CoachSettingsDialog { coachSettings = false }
 
     carCheck?.let { report ->
         AlertDialog(

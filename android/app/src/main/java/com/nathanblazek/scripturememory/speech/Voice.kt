@@ -106,6 +106,12 @@ class Voice(context: Context) {
         softTone(volume)?.startTone(ToneGenerator.TONE_PROP_ACK, 100)
     }
 
+    /** Plays the blip and then the chime at [volume], to try a setting. */
+    fun sampleSounds(volume: Int) {
+        softBlip(volume)
+        handler.postDelayed({ softChime(volume) }, 400)
+    }
+
     private fun softTone(volume: Int): ToneGenerator? {
         if (volume <= 0) return null
         if (volume != softVolume) {
